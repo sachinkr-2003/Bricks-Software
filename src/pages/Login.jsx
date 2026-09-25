@@ -14,7 +14,8 @@ const Login = ({ onLogin }) => {
     setErrorMsg('');
     
     try {
-      const response = await api.post('/auth/login', { phone, pin: password });
+      // ✅ Use software-specific login - blocks customer accounts
+      const response = await api.post('/auth/login/software', { phone, pin: password });
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data));
       onLogin();

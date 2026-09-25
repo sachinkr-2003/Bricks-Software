@@ -5,28 +5,82 @@ import api from '../services/api';
 
 const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState({ totalProjects: 0, totalActiveWorkers: 0 });
-  const [budgetStats, setBudgetStats] = useState({ materialCost: 0, amountPaid: 0 });
+  const [budgetStats, setBudgetStats] = useState({ materialCost: 0, amountPaid: 0, totalContractValue: 0, labourCost: 0, otherExpenses: 0 });
+  const [project, setProject] = useState(null);
+  const [recentUpdates, setRecentUpdates] = useState([]);
+  const [recentMaterials, setRecentMaterials] = useState([]);
+  const [recentPhotos, setRecentPhotos] = useState([]);
+  const [materialChartData, setMaterialChartData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [newBudget, setNewBudget] = useState('');
   const [newLimit, setNewLimit] = useState('');
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
-      const [dashRes, budgetRes] = await Promise.all([
+      const [dashRes, budgetRes, projectsRes, updatesRes, materialsRes] = await Promise.all([
         api.get('/analytics/dashboard'),
-        api.get('/analytics/budget')
+        api.get('/analytics/budget'),
+        api.get('/projects'),
+        api.get('/updates'),
+        api.get('/materials'),
       ]);
+
       setDashboardStats(dashRes.data);
       setBudgetStats(budgetRes.data);
+
+      // Set first project info
+      if (projectsRes.data && projectsRes.data.length > 0) {
+        setProject(projectsRes.data[0]);
+      }
+
+      // Recent updates (today's work & upcoming)
+      if (updatesRes.data) {
+        setRecentUpdates(updatesRes.data.slice(0, 5));
+      }
+
+      // Recent materials for table
+      if (materialsRes.data) {
+        const mats = materialsRes.data.slice(0, 5);
+        setRecentMaterials(mats);
+
+        // Build chart data — group by date
+        const grouped = {};
+        materialsRes.data.forEach(m => {
+          const date = m.createdAt ? m.createdAt.substring(0, 10) : 'Unknown';
+          grouped[date] = (grouped[date] || 0) + (m.totalCost || 0);
+        });
+        const chartArr = Object.entries(grouped)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-10)
+          .map(([date, amount]) => ({
+            date: new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+            amount
+          }));
+        setMaterialChartData(chartArr);
+      }
+
     } catch (err) {
-      console.error(err);
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Fetch photos from updates that have images
+  useEffect(() => {
+    const photos = recentUpdates
+      .flatMap(u => u.photos || [])
+      .filter(Boolean)
+      .slice(0, 4);
+    setRecentPhotos(photos);
+  }, [recentUpdates]);
 
   const handleUpdateConfig = async (e) => {
     e.preventDefault();
@@ -44,12 +98,21 @@ const Dashboard = () => {
     }
   };
 
-  const materialUsageChartData = [];
+  const formatINR = (val) => `₹${(val || 0).toLocaleString('en-IN')}`;
+
+  const completionPct = project?.completionPercentage || 0;
+  const currentStage = project?.currentStage || 'Not Started';
+  const startDate = project?.startDate
+    ? new Date(project.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+  const endDate = project?.expectedEndDate
+    ? new Date(project.expectedEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* 6. TRANSPARENCY: DAILY SNAPSHOT */}
+      {/* LIVE SNAPSHOT HEADER */}
       <div className="bg-slate-900 border border-slate-800 rounded-none shadow-sm p-6 text-white flex flex-col lg:flex-row justify-between items-center gap-6">
          <div className="shrink-0 flex items-center gap-4">
             <div className="w-12 h-12 bg-orange-600 flex items-center justify-center">
@@ -70,11 +133,11 @@ const Dashboard = () => {
          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             <div className="bg-slate-800 p-4 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Projects</span>
-               <span className="font-bold text-white text-sm line-clamp-2">{dashboardStats.totalProjects} Active</span>
+               <span className="font-bold text-white text-sm">{dashboardStats.totalProjects} Active</span>
             </div>
             <div className="bg-slate-800 p-4 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Material Expenditure</span>
-               <span className="font-bold text-white text-sm">₹{budgetStats.materialCost.toLocaleString('en-IN')}</span>
+               <span className="font-bold text-white text-sm">{formatINR(budgetStats.materialCost)}</span>
             </div>
             <div className="bg-slate-800 p-4 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Workforce Deployed</span>
@@ -82,24 +145,24 @@ const Dashboard = () => {
             </div>
             <div className="bg-slate-800 p-4 border-t-4 border-t-orange-500 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Expenditure</span>
-               <span className="font-bold text-green-400 text-xl tracking-tight">₹{budgetStats.amountPaid.toLocaleString('en-IN')}</span>
+               <span className="font-bold text-green-400 text-xl tracking-tight">{formatINR(budgetStats.amountPaid)}</span>
             </div>
          </div>
       </div>
 
-      {/* KPI METRICS */}
+      {/* KPI METRICS — Live from DB */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* 1. Overall Completion */}
         <div className="bg-white p-6 border border-slate-200 rounded-none shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Overall Completion</p>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">0%</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">{completionPct}%</h2>
             </div>
             <Target className="w-6 h-6 text-orange-600" />
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-none">
-            <div className="bg-orange-600 h-full w-[0%] rounded-none"></div>
+            <div className="bg-orange-600 h-full rounded-none transition-all duration-700" style={{ width: `${completionPct}%` }}></div>
           </div>
         </div>
 
@@ -108,7 +171,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Current Stage</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">Not Started</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : currentStage}</h2>
             </div>
             <Activity className="w-6 h-6 text-blue-600" />
           </div>
@@ -119,18 +182,18 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Start Date</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">-</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : startDate}</h2>
             </div>
             <CalendarCheck className="w-6 h-6 text-emerald-600" />
           </div>
         </div>
 
-        {/* 3. Expected Completion */}
+        {/* 4. Expected Completion */}
         <div className="bg-white p-6 border border-slate-200 rounded-none shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Expected Completion</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">-</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : endDate}</h2>
             </div>
             <CalendarDays className="w-6 h-6 text-slate-600" />
           </div>
@@ -146,40 +209,56 @@ const Dashboard = () => {
             <TrendingUp className="w-5 h-5 text-orange-600" /> Overall Material Chart
           </h2>
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={materialUsageChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
-                <YAxis tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} width={80} tickFormatter={(val) => `₹${val/1000}k`} />
-                <Tooltip cursor={{ stroke: '#cbd5e1' }} contentStyle={{ borderRadius: '0px', border: '1px solid #e2e8f0' }} />
-                <Area type="monotone" dataKey="amount" stroke="#ea580c" strokeWidth={3} fillOpacity={1} fill="url(#colorAmt)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm font-medium">Loading chart...</div>
+            ) : materialChartData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm font-medium">No material data yet</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={materialChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} width={80} tickFormatter={(val) => `₹${val/1000}k`} />
+                  <Tooltip cursor={{ stroke: '#cbd5e1' }} contentStyle={{ borderRadius: '0px', border: '1px solid #e2e8f0' }} formatter={(val) => [`₹${val.toLocaleString('en-IN')}`, 'Amount']} />
+                  <Area type="monotone" dataKey="amount" stroke="#ea580c" strokeWidth={3} fillOpacity={1} fill="url(#colorAmt)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Overall Material Usage List */}
+        {/* Material Details Table */}
         <div className="bg-white border border-slate-200 rounded-none shadow-sm p-6">
-           <h2 className="text-lg font-bold text-slate-900 mb-6">Overall Material Details</h2>
+           <h2 className="text-lg font-bold text-slate-900 mb-6">Recent Material Entries</h2>
            <div className="overflow-x-auto border border-slate-200">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 font-bold text-slate-600">Date</th>
                     <th className="px-4 py-3 font-bold text-slate-600">Item</th>
-                    <th className="px-4 py-3 font-bold text-slate-600">Quantity</th>
+                    <th className="px-4 py-3 font-bold text-slate-600">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  <tr>
-                    <td colSpan="3" className="px-4 py-8 text-center text-slate-500 font-medium">No materials logged yet.</td>
-                  </tr>
+                  {isLoading ? (
+                    <tr><td colSpan="3" className="px-4 py-8 text-center text-slate-400 font-medium">Loading...</td></tr>
+                  ) : recentMaterials.length === 0 ? (
+                    <tr><td colSpan="3" className="px-4 py-8 text-center text-slate-500 font-medium">No materials logged yet.</td></tr>
+                  ) : (
+                    recentMaterials.map((mat, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 text-slate-600">{mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-IN') : '—'}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{mat.itemName || '—'}</td>
+                        <td className="px-4 py-3 text-orange-600 font-bold">{formatINR(mat.totalCost)}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
            </div>
@@ -189,34 +268,78 @@ const Dashboard = () => {
       {/* TODAY'S WORK, UPCOMING TASKS, PHOTOS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* 4. Today's Work */}
+        {/* Today's Work */}
         <div className="bg-white border border-slate-200 rounded-none shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
             <CheckCircle2 className="w-5 h-5 text-green-600" /> Today's Work
           </h2>
           <ul className="space-y-3">
-             <li className="text-slate-500 text-sm font-medium text-center py-4">No tasks logged for today</li>
+            {isLoading ? (
+              <li className="text-slate-400 text-sm font-medium text-center py-4">Loading...</li>
+            ) : recentUpdates.filter(u => {
+              const d = new Date(u.createdAt);
+              const today = new Date();
+              return d.toDateString() === today.toDateString();
+            }).length === 0 ? (
+              <li className="text-slate-500 text-sm font-medium text-center py-4">No tasks logged for today</li>
+            ) : (
+              recentUpdates
+                .filter(u => {
+                  const d = new Date(u.createdAt);
+                  return d.toDateString() === new Date().toDateString();
+                })
+                .map((u, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                    <span className="text-slate-700 font-medium">{u.workCompleted || u.workInProgress || 'Update logged'}</span>
+                  </li>
+                ))
+            )}
           </ul>
         </div>
 
-        {/* 6. Upcoming Tasks */}
+        {/* Upcoming Tasks */}
         <div className="bg-white border border-slate-200 rounded-none shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
-            <Clock className="w-5 h-5 text-blue-600" /> Upcoming Tasks
+            <Clock className="w-5 h-5 text-blue-600" /> Recent Updates
           </h2>
           <ul className="space-y-3">
-             <li className="text-slate-500 text-sm font-medium text-center py-4">No upcoming tasks scheduled</li>
+            {isLoading ? (
+              <li className="text-slate-400 text-sm font-medium text-center py-4">Loading...</li>
+            ) : recentUpdates.length === 0 ? (
+              <li className="text-slate-500 text-sm font-medium text-center py-4">No updates yet</li>
+            ) : (
+              recentUpdates.slice(0, 4).map((u, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm border-b border-slate-50 pb-2 last:border-0">
+                  <Clock className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-slate-700 font-medium line-clamp-1">{u.workCompleted || u.workInProgress || 'Update'}</p>
+                    <p className="text-slate-400 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : ''}</p>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </div>
 
-        {/* 5. Site Photos */}
+        {/* Site Photos */}
         <div className="bg-white border border-slate-200 rounded-none shadow-sm p-6 flex flex-col">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
             <Camera className="w-5 h-5 text-slate-900" /> Site Photos
           </h2>
-          <div className="flex-1 flex items-center justify-center bg-slate-50 border border-dashed border-slate-300 min-h-[120px]">
-             <span className="text-slate-500 text-sm font-medium">No photos uploaded</span>
-          </div>
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">Loading...</div>
+          ) : recentPhotos.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center bg-slate-50 border border-dashed border-slate-300 min-h-[120px]">
+               <span className="text-slate-500 text-sm font-medium">No photos uploaded</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {recentPhotos.map((url, i) => (
+                <img key={i} src={url} alt={`Site photo ${i+1}`} className="w-full h-24 object-cover border border-slate-200" />
+              ))}
+            </div>
+          )}
         </div>
 
       </div>
@@ -240,6 +363,7 @@ const Dashboard = () => {
                   value={newBudget}
                   onChange={(e) => setNewBudget(e.target.value)}
                   className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
+                  placeholder={`Current: ${formatINR(budgetStats.totalContractValue)}`}
                   required
                 />
               </div>
@@ -250,6 +374,7 @@ const Dashboard = () => {
                   value={newLimit}
                   onChange={(e) => setNewLimit(e.target.value)}
                   className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
+                  placeholder={`Current: ${formatINR(budgetStats.approvedAdditional)}`}
                   required
                 />
               </div>
