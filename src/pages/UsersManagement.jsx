@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Phone, Shield, Trash2, Key, Loader, ImagePlus, Eye, Edit2 } from 'lucide-react';
+import { User, Phone, Shield, Trash2, Key, Loader, ImagePlus, Eye, Edit2, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 import api from '../services/api';
+
+// ✅ Fix relative image paths — old records may have /uploads/... stored
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://bricks-backend-fk3q.onrender.com';
+const getImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;  // Already absolute
+  return `${BACKEND_URL}${url}`;           // Prepend backend for relative paths
+};
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -46,15 +54,18 @@ const UsersManagement = () => {
     formData.append('images', file);
     
     try {
-      // Assuming /upload returns { urls: ['url1'] }
       const res = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data && res.data.urls && res.data.urls.length > 0) {
+        // ✅ Now URLs are absolute (https://...) coming from backend
         setProfileImage(res.data.urls[0]);
+      } else {
+        alert('Upload failed. Please try again.');
       }
     } catch (err) {
-      alert('Error uploading image');
+      console.error('Upload error:', err);
+      alert('Error uploading image. Please check your connection.');
     } finally {
       setIsUploading(false);
     }
@@ -201,18 +212,38 @@ const UsersManagement = () => {
                 {/* Profile Image Pick */}
                 <div className="flex flex-col items-center mb-2">
                   <div 
-                    className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded-none flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-100 transition-colors"
+                    className="w-24 h-24 bg-slate-50 border-2 border-dashed border-slate-300 rounded-none flex items-center justify-center overflow-hidden cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors relative group"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {isUploading ? (
-                      <Loader className="w-5 h-5 animate-spin text-slate-500" />
+                      <div className="flex flex-col items-center gap-1">
+                        <Loader className="w-5 h-5 animate-spin text-orange-500" />
+                        <span className="text-xs text-slate-400">Uploading...</span>
+                      </div>
                     ) : profileImage ? (
-                      <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                      <>
+                        <img src={getImageUrl(profileImage)} alt="Profile" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-white text-xs font-bold">Change</span>
+                        </div>
+                      </>
                     ) : (
-                      <ImagePlus className="w-6 h-6 text-slate-400" />
+                      <div className="flex flex-col items-center gap-1 text-slate-400 group-hover:text-orange-500 transition-colors">
+                        <ImagePlus className="w-6 h-6" />
+                        <span className="text-[10px] font-bold uppercase">Upload</span>
+                      </div>
                     )}
                   </div>
-                  <span className="text-xs text-slate-500 mt-3 font-semibold uppercase tracking-widest">Avatar (Optional)</span>
+                  {profileImage && (
+                    <button
+                      type="button"
+                      onClick={() => setProfileImage('')}
+                      className="text-xs text-red-500 mt-1 hover:underline flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Remove photo
+                    </button>
+                  )}
+                  <span className="text-xs text-slate-500 mt-2 font-semibold uppercase tracking-widest">Avatar (Optional)</span>
                   <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
                 </div>
 
@@ -303,15 +334,19 @@ const UsersManagement = () => {
                        <tr key={user._id} className="hover:bg-orange-50/30 transition-colors">
                          <td className="px-6 py-4 border border-slate-300">
                            <div className="flex items-center gap-4">
-                             {user.profileImage ? (
-                               <img src={user.profileImage} alt={user.name} className="w-9 h-9 rounded-none object-cover border border-slate-300 shadow-sm" />
-                             ) : (
-                               <div className="w-9 h-9 rounded-none bg-slate-200 flex justify-center items-center text-slate-700 font-black text-sm uppercase shadow-sm border border-slate-300">
-                                 {user.name.charAt(0)}
-                               </div>
-                             )}
-                             <div className="font-bold text-slate-900">{user.name}</div>
-                           </div>
+                              {getImageUrl(user.profileImage) ? (
+                                <img 
+                                  src={getImageUrl(user.profileImage)} 
+                                  alt={user.name} 
+                                  className="w-9 h-9 rounded-none object-cover border border-slate-300 shadow-sm"
+                                  onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                                />
+                              ) : null}
+                              <div className="w-9 h-9 rounded-none bg-slate-200 justify-center items-center text-slate-700 font-black text-sm uppercase shadow-sm border border-slate-300" style={{display: getImageUrl(user.profileImage) ? 'none' : 'flex'}}>
+                                {user.name.charAt(0)}
+                              </div>
+                              <div className="font-bold text-slate-900">{user.name}</div>
+                          </div>
                          </td>
                          <td className="px-6 py-4 text-sm font-medium text-slate-700 border border-slate-300">
                             {user.phone}
