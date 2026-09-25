@@ -20,20 +20,22 @@ const Dashboard = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [dashRes, budgetRes, projectsRes, updatesRes, materialsRes] = await Promise.all([
+      const [dashRes, budgetRes, updatesRes, materialsRes] = await Promise.all([
         api.get('/analytics/dashboard'),
         api.get('/analytics/budget'),
-        api.get('/projects'),
         api.get('/updates'),
         api.get('/materials'),
       ]);
 
-      setDashboardStats(dashRes.data);
+      const dashData = dashRes.data;
+      setDashboardStats(dashData);
       setBudgetStats(budgetRes.data);
 
-      // Set first project info
-      if (projectsRes.data && projectsRes.data.length > 0) {
-        setProject(projectsRes.data[0]);
+      // ✅ Project now comes directly from dashboard response
+      if (dashData.project) {
+        setProject(dashData.project);
+      } else {
+        setProject(null); // No project in DB
       }
 
       // Recent updates (today's work & upcoming)
@@ -74,7 +76,7 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  // Fetch photos from updates that have images
+  // Extract photos from recent updates
   useEffect(() => {
     const photos = recentUpdates
       .flatMap(u => u.photos || [])
@@ -82,6 +84,7 @@ const Dashboard = () => {
       .slice(0, 4);
     setRecentPhotos(photos);
   }, [recentUpdates]);
+
 
   const handleUpdateConfig = async (e) => {
     e.preventDefault();
@@ -124,14 +127,14 @@ const Dashboard = () => {
 
   const formatINR = (val) => `₹${(val || 0).toLocaleString('en-IN')}`;
 
-  const completionPct = project?.completionPercentage || 0;
-  const currentStage = project?.currentStage || 'Not Started';
+  const completionPct = project?.completionPercentage ?? 0;
+  const currentStage = project?.currentStage ?? null;
   const startDate = project?.startDate
     ? new Date(project.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+    : null;
   const endDate = project?.expectedEndDate
     ? new Date(project.expectedEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    : '—';
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -144,13 +147,16 @@ const Dashboard = () => {
             </div>
             <div>
                <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Live Transparency Engine</p>
-               <h2 className="text-2xl font-serif font-bold text-white leading-tight">Today's Snapshot</h2>
+               <h2 className="text-2xl font-serif font-bold text-white leading-tight">
+                 {project?.name || "Today's Snapshot"}
+               </h2>
+               {project?.address && <p className="text-slate-400 text-xs mt-1">{project.address}</p>}
             </div>
             <button 
               onClick={() => setIsSettingsModalOpen(true)}
-              className="ml-4 bg-slate-800 text-xs font-bold px-3 py-1 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+              className="ml-4 bg-orange-600 text-xs font-bold px-3 py-2 text-white border border-orange-500 hover:bg-orange-700 transition-colors"
             >
-              Admin Settings
+              {project ? '✏️ Edit Project' : '➕ Create Project'}
             </button>
          </div>
          
@@ -174,6 +180,22 @@ const Dashboard = () => {
          </div>
       </div>
 
+      {/* NO PROJECT BANNER — show when no project exists */}
+      {!isLoading && !project && (
+        <div
+          onClick={() => setIsSettingsModalOpen(true)}
+          className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-none p-6 flex items-center justify-between cursor-pointer hover:bg-orange-100 transition-colors group"
+        >
+          <div>
+            <p className="text-orange-700 font-bold text-sm uppercase tracking-wider">⚠️ No Project Setup Yet</p>
+            <p className="text-orange-600 text-sm mt-1">Click here to create your first project and unlock all dashboard data.</p>
+          </div>
+          <span className="bg-orange-600 text-white font-bold px-6 py-2 text-sm group-hover:bg-orange-700 transition-colors">
+            + Create Project →
+          </span>
+        </div>
+      )}
+
       {/* KPI METRICS — Live from DB */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* 1. Overall Completion */}
@@ -181,13 +203,18 @@ const Dashboard = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Overall Completion</p>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">{completionPct}%</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
+                {isLoading ? '...' : `${completionPct}%`}
+              </h2>
             </div>
             <Target className="w-6 h-6 text-orange-600" />
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-none">
             <div className="bg-orange-600 h-full rounded-none transition-all duration-700" style={{ width: `${completionPct}%` }}></div>
           </div>
+          {!project && !isLoading && (
+            <p className="text-xs text-slate-400 mt-2">Create a project to track progress</p>
+          )}
         </div>
 
         {/* 2. Current Stage */}
@@ -195,7 +222,15 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Current Stage</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : currentStage}</h2>
+              {isLoading ? (
+                <div className="h-7 w-28 bg-slate-100 animate-pulse mt-2 rounded" />
+              ) : currentStage ? (
+                <h2 className="text-xl font-bold text-slate-900 mt-2">{currentStage}</h2>
+              ) : (
+                <h2 className="text-base font-bold text-orange-500 mt-2 cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
+                  + Setup Project
+                </h2>
+              )}
             </div>
             <Activity className="w-6 h-6 text-blue-600" />
           </div>
@@ -206,7 +241,15 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Start Date</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : startDate}</h2>
+              {isLoading ? (
+                <div className="h-7 w-28 bg-slate-100 animate-pulse mt-2 rounded" />
+              ) : startDate ? (
+                <h2 className="text-xl font-bold text-slate-900 mt-2">{startDate}</h2>
+              ) : (
+                <h2 className="text-base font-bold text-orange-500 mt-2 cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
+                  + Add Start Date
+                </h2>
+              )}
             </div>
             <CalendarCheck className="w-6 h-6 text-emerald-600" />
           </div>
@@ -217,7 +260,15 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Expected Completion</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">{isLoading ? '...' : endDate}</h2>
+              {isLoading ? (
+                <div className="h-7 w-28 bg-slate-100 animate-pulse mt-2 rounded" />
+              ) : endDate ? (
+                <h2 className="text-xl font-bold text-slate-900 mt-2">{endDate}</h2>
+              ) : (
+                <h2 className="text-base font-bold text-orange-500 mt-2 cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
+                  + Add End Date
+                </h2>
+              )}
             </div>
             <CalendarDays className="w-6 h-6 text-slate-600" />
           </div>
