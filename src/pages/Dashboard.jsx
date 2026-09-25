@@ -46,11 +46,12 @@ const Dashboard = () => {
         const mats = materialsRes.data.slice(0, 5);
         setRecentMaterials(mats);
 
-        // Build chart data — group by date
+        // Build chart data — group by date field (MaterialBill has a 'date' field)
         const grouped = {};
         materialsRes.data.forEach(m => {
-          const date = m.createdAt ? m.createdAt.substring(0, 10) : 'Unknown';
-          grouped[date] = (grouped[date] || 0) + (m.totalCost || 0);
+          const rawDate = m.date || m.createdAt || null;
+          const dateKey = rawDate ? rawDate.substring(0, 10) : 'Unknown';
+          grouped[dateKey] = (grouped[dateKey] || 0) + (m.totalCost || 0);
         });
         const chartArr = Object.entries(grouped)
           .sort(([a], [b]) => a.localeCompare(b))
@@ -84,17 +85,40 @@ const Dashboard = () => {
 
   const handleUpdateConfig = async (e) => {
     e.preventDefault();
+    const formData = new FormData(e.target);
     try {
-      await api.put('/projects/config', {
-        totalBudget: Number(newBudget),
-        approvedAdditional: Number(newLimit)
-      });
-      alert('Project Configuration Updated');
+      if (!project) {
+        // Create a brand new project
+        const payload = {
+          name: formData.get('name') || 'My Project',
+          address: formData.get('address') || 'Site Address',
+          startDate: formData.get('startDate') || undefined,
+          expectedEndDate: formData.get('expectedEndDate') || undefined,
+          currentStage: formData.get('currentStage') || 'Planning',
+          completionPercentage: Number(formData.get('completionPercentage')) || 0,
+          totalBudget: Number(newBudget) || 0,
+          approvedAdditional: Number(newLimit) || 0,
+        };
+        await api.post('/projects', payload);
+        alert('✅ Project created successfully!');
+      } else {
+        // Update existing project
+        const payload = {
+          startDate: formData.get('startDate') || undefined,
+          expectedEndDate: formData.get('expectedEndDate') || undefined,
+          currentStage: formData.get('currentStage') || project.currentStage,
+          completionPercentage: Number(formData.get('completionPercentage')),
+          totalBudget: Number(newBudget) || budgetStats.totalContractValue,
+          approvedAdditional: Number(newLimit) || budgetStats.approvedAdditional,
+        };
+        await api.put(`/projects/${project._id}`, payload);
+        alert('✅ Project updated successfully!');
+      }
       setIsSettingsModalOpen(false);
       fetchData();
-    } catch (e) {
-      console.error(e);
-      alert('Error updating configuration');
+    } catch (err) {
+      console.error(err);
+      alert('Error saving project. Please try again.');
     }
   };
 
@@ -253,8 +277,11 @@ const Dashboard = () => {
                   ) : (
                     recentMaterials.map((mat, i) => (
                       <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 text-slate-600">{mat.createdAt ? new Date(mat.createdAt).toLocaleDateString('en-IN') : '—'}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900">{mat.itemName || '—'}</td>
+                        <td className="px-4 py-3 text-slate-600">{mat.date ? new Date(mat.date).toLocaleDateString('en-IN') : '—'}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">
+                          <div className="font-bold text-slate-900">{mat.materialName || '—'}</div>
+                          <div className="text-xs text-slate-400">{mat.supplierName || ''}</div>
+                        </td>
                         <td className="px-4 py-3 text-orange-600 font-bold">{formatINR(mat.totalCost)}</td>
                       </tr>
                     ))
@@ -346,39 +373,77 @@ const Dashboard = () => {
 
       {isSettingsModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-white max-w-lg w-full shadow-2xl">
             <div className="bg-slate-900 p-4 flex justify-between items-center text-white">
-              <h2 className="font-bold text-sm uppercase tracking-wider">Project Configuration</h2>
-              <button 
-                onClick={() => setIsSettingsModalOpen(false)} 
-                className="text-slate-400 hover:text-white transition-colors">
-                  ✕
-              </button>
+              <h2 className="font-bold text-sm uppercase tracking-wider">
+                {project ? 'Edit Project Configuration' : '+ Create New Project'}
+              </h2>
+              <button onClick={() => setIsSettingsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">✕</button>
             </div>
-            <form onSubmit={handleUpdateConfig} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Total Contract Value (₹)</label>
-                <input 
-                  type="number" 
-                  value={newBudget}
-                  onChange={(e) => setNewBudget(e.target.value)}
-                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
-                  placeholder={`Current: ${formatINR(budgetStats.totalContractValue)}`}
-                  required
-                />
+            <form onSubmit={handleUpdateConfig} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              
+              {!project && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Project Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. DLF Phase 3 Villa"
+                      className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Site Address *</label>
+                    <input type="text" name="address" required placeholder="e.g. Sector 24, Gurgaon"
+                      className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+                  </div>
+                </>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date</label>
+                  <input type="date" name="startDate" defaultValue={project?.startDate?.substring(0, 10) || ''}
+                    className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Expected End Date</label>
+                  <input type="date" name="expectedEndDate" defaultValue={project?.expectedEndDate?.substring(0, 10) || ''}
+                    className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+                </div>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Current Stage</label>
+                <select name="currentStage" defaultValue={project?.currentStage || 'Planning'}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500">
+                  {['Planning','Site Preparation','Foundation','Framing','Roofing','Plumbing','Electrical','Finishing','Handover'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Completion % (0–100)</label>
+                <input type="number" min="0" max="100" name="completionPercentage"
+                  defaultValue={project?.completionPercentage || 0}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Total Contract Value (₹) *</label>
+                <input type="number" value={newBudget} onChange={(e) => setNewBudget(e.target.value)} required
+                  placeholder={project ? `Current: ${formatINR(budgetStats.totalContractValue)}` : 'e.g. 5000000'}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Approved Additional Limit (₹)</label>
-                <input 
-                  type="number" 
-                  value={newLimit}
-                  onChange={(e) => setNewLimit(e.target.value)}
-                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
-                  placeholder={`Current: ${formatINR(budgetStats.approvedAdditional)}`}
-                  required
-                />
+                <input type="number" value={newLimit} onChange={(e) => setNewLimit(e.target.value)}
+                  placeholder={project ? `Current: ${formatINR(budgetStats.approvedAdditional)}` : '0'}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500" />
               </div>
-              <button type="submit" className="w-full bg-orange-600 text-white font-bold py-3 hover:bg-slate-900 transition-colors uppercase">Save Settings</button>
+
+              <button type="submit" className="w-full bg-orange-600 text-white font-bold py-3 hover:bg-slate-900 transition-colors uppercase tracking-wider">
+                {project ? 'Update Project' : 'Create Project'}
+              </button>
             </form>
           </div>
         </div>
@@ -388,3 +453,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

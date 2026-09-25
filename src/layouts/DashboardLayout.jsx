@@ -14,6 +14,22 @@ const DashboardLayout = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const location = useLocation();
 
+  // ✅ Real user from localStorage
+  const [loggedUser, setLoggedUser] = useState({ name: '', role: '', profileImage: '' });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        setLoggedUser({
+          name: u.name || 'User',
+          role: (u.role || 'staff').toUpperCase(),
+          profileImage: u.profileImage || '',
+        });
+      }
+    } catch (_) {}
+  }, []);
+
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
@@ -148,11 +164,14 @@ const DashboardLayout = () => {
           {/* Profile Button */}
           <Link to="/profile" className="hidden sm:flex items-center gap-3 hover:bg-slate-800 p-1.5 border border-transparent hover:border-slate-700 transition-colors">
              <div className="text-right">
-                <span className="block text-white text-sm font-bold leading-tight">Amit Sharma</span>
-                <span className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Site Manager</span>
+                <span className="block text-white text-sm font-bold leading-tight">{loggedUser.name || 'Loading...'}</span>
+                <span className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">{loggedUser.role}</span>
              </div>
-             <div className="w-9 h-9 bg-slate-700 flex items-center justify-center shadow-sm">
-                <User className="w-5 h-5 text-white" />
+             <div className="w-9 h-9 bg-slate-700 flex items-center justify-center shadow-sm overflow-hidden">
+                {loggedUser.profileImage
+                  ? <img src={loggedUser.profileImage} alt="profile" className="w-full h-full object-cover" />
+                  : <User className="w-5 h-5 text-white" />
+                }
              </div>
           </Link>
 
