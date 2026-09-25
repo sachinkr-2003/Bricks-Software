@@ -7,6 +7,7 @@ const UsersManagement = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -67,6 +68,7 @@ const UsersManagement = () => {
     try {
       await api.post('/auth/register', { name, phone, pin, role, profileImage });
       setName(''); setPhone(''); setPin(''); setRole('customer'); setProfileImage('');
+      setIsModalOpen(false);
       await fetchUsers(); // Refresh list
     } catch (err) {
       setError(err.response?.data?.message || 'Error creating user');
@@ -87,13 +89,19 @@ const UsersManagement = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-10">
-      <div className="flex justify-between items-end bg-white p-8 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-2 h-full bg-orange-600"></div>
-        <div className="relative z-10">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight font-serif">App Users & Clients</h1>
-          <p className="text-slate-500 font-medium mt-2">Manage personnel access and client accounts for the mobile application.</p>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-8 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-2 h-full bg-orange-600"></div>
+          <div className="relative z-10">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight font-serif">App Users & Clients</h1>
+            <p className="text-slate-500 font-medium mt-2">Manage personnel access and client accounts for the mobile application.</p>
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="shrink-0 bg-slate-900 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold tracking-widest uppercase text-xs transition-colors shadow-lg flex items-center gap-2 relative z-10"
+          >
+            + Add New User
+          </button>
         </div>
-      </div>
 
       {error && (
         <div className="p-4 bg-red-50 text-red-600 border border-red-200 font-bold text-sm">
@@ -101,11 +109,12 @@ const UsersManagement = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Create User Form */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100 relative overflow-hidden">
+      <div className="w-full">
+            
+      {/* Modal Overlay */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 border border-slate-100 max-w-md w-full relative overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 rounded-bl-full -z-0"></div>
             
             <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 relative z-10">
@@ -175,15 +184,20 @@ const UsersManagement = () => {
               </div>
 
               <button type="submit" disabled={isSubmitting} className="w-full py-4 mt-4 bg-orange-600 text-white font-black tracking-widest uppercase hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/30 rounded-xl flex justify-center items-center gap-2 hover:shadow-orange-600/50 hover:-translate-y-0.5 active:translate-y-0">
-                {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : 'GENERATE LOGIN'}
+                {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : 'CREATE NEW USER'}
+              </button>
+              
+              <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 mt-2 text-slate-500 font-bold uppercase tracking-widest text-xs hover:text-slate-800 transition-colors">
+                Cancel
               </button>
 
             </form>
           </div>
         </div>
+      )}
 
         {/* Users List */}
-        <div className="lg:col-span-2">
+        <div>
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden h-full flex flex-col pt-1">
              <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-md">
                <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
