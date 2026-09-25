@@ -9,6 +9,8 @@ const UsersManagement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -60,23 +62,45 @@ const UsersManagement = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    if (!name || !phone || !pin) {
-      Swal.fire({ icon: 'warning', title: 'Incomplete', text: 'Please fill all required fields', confirmButtonColor: '#ea580c' });
+    if (!name || !phone) {
+      Swal.fire({ icon: 'warning', title: 'Incomplete', text: 'Please fill name and phone', confirmButtonColor: '#ea580c' });
       return;
     }
+    if (!editMode && !pin) {
+      Swal.fire({ icon: 'warning', title: 'Incomplete', text: 'Please provide a login PIN for new user', confirmButtonColor: '#ea580c' });
+      return;
+    }
+
     setError('');
     setIsSubmitting(true);
     try {
-      await api.post('/auth/register', { name, phone, pin, role, profileImage });
-      setName(''); setPhone(''); setPin(''); setRole('customer'); setProfileImage('');
+      if (editMode) {
+        const payload = { name, phone, role, profileImage };
+        if (pin) payload.pin = pin; // Only send if updating password
+        await api.put(`/auth/${editingUserId}`, payload);
+        Swal.fire({ icon: 'success', title: 'Updated!', text: 'User successfully updated.', confirmButtonColor: '#ea580c', timer: 2000 });
+      } else {
+        await api.post('/auth/register', { name, phone, pin, role, profileImage });
+        Swal.fire({ icon: 'success', title: 'Created!', text: 'User successfully registered.', confirmButtonColor: '#ea580c', timer: 2000 });
+      }
+      resetForm();
       setIsModalOpen(false);
       await fetchUsers(); // Refresh list
-      Swal.fire({ icon: 'success', title: 'Created!', text: 'User successfully registered.', confirmButtonColor: '#ea580c', timer: 2000 });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error creating user', confirmButtonColor: '#ea580c' });
+      Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error saving user', confirmButtonColor: '#ea580c' });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setName(''); setPhone(''); setPin(''); setRole('customer'); setProfileImage('');
+    setEditMode(false); setEditingUserId(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setIsModalOpen(true);
   };
 
   const handleDeleteUser = async (id) => {
@@ -102,14 +126,32 @@ const UsersManagement = () => {
     }
   };
 
-  const handleActionPlaceholder = (actionName) => {
+  const handleViewUser = (user) => {
     Swal.fire({
-      icon: 'info',
-      title: `${actionName} User`,
-      text: `The ${actionName.toLowerCase()} feature is coming in the next update.`,
+      title: 'User Details',
+      html: `
+        <div style="text-align: left; padding: 10px; font-family: sans-serif;">
+          ${user.profileImage ? `<div style="text-align:center; margin-bottom: 20px;"><img src="${user.profileImage}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #ea580c;" /></div>` : ''}
+          <p style="margin-bottom: 8px;"><strong>Full Name:</strong> ${user.name}</p>
+          <p style="margin-bottom: 8px;"><strong>Phone:</strong> ${user.phone}</p>
+          <p><strong>Designation:</strong> <span style="text-transform: uppercase; font-weight: bold; background: #f8fafc; padding: 2px 6px; border: 1px solid #e2e8f0;">${user.role}</span></p>
+        </div>
+      `,
       confirmButtonColor: '#ea580c'
     });
   };
+
+  const handleEditUser = (user) => {
+    setEditMode(true);
+    setEditingUserId(user._id);
+    setName(user.name);
+    setPhone(user.phone);
+    setRole(user.role);
+    setPin(''); // Do not display original PIN
+    setProfileImage(user.profileImage || '');
+    setIsModalOpen(true);
+  };
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-10">
@@ -119,7 +161,7 @@ const UsersManagement = () => {
             <p className="text-slate-500 text-sm mt-1">Manage personnel access and client accounts.</p>
           </div>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="shrink-0 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-none font-bold uppercase text-xs tracking-widest transition-colors flex items-center gap-2"
           >
             + New User
@@ -135,7 +177,7 @@ const UsersManagement = () => {
             
             <div className="flex justify-between items-center p-6 border-b border-slate-200">
               <h2 className="text-lg font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                Register User
+                {editMode ? 'Edit User' : 'Register User'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                 &times;
@@ -180,10 +222,12 @@ const UsersManagement = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Login PIN (4-Digits)</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                    {editMode ? 'Reset Login PIN (Optional)' : 'Login PIN (4-Digits)'}
+                  </label>
                   <div className="relative">
                     <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input type="text" value={pin} onChange={(e) => setPin(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium" placeholder="e.g. 1234" />
+                    <input type="text" value={pin} onChange={(e) => setPin(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium" placeholder={editMode ? 'Type new PIN or leave blank' : 'e.g. 1234'} />
                   </div>
                 </div>
 
@@ -208,7 +252,7 @@ const UsersManagement = () => {
                     Cancel
                   </button>
                   <button type="submit" disabled={isSubmitting} className="flex-1 py-3 bg-orange-600 text-white font-bold uppercase text-xs tracking-widest rounded-none hover:bg-orange-700 transition-colors flex justify-center items-center gap-2">
-                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : 'Create'}
+                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : editMode ? 'Save Changes' : 'Create'}
                   </button>
                 </div>
               </form>
@@ -276,10 +320,10 @@ const UsersManagement = () => {
                          </td>
                          <td className="px-6 py-4 border border-slate-300 text-center">
                            <div className="flex items-center justify-center gap-2">
-                             <button onClick={() => handleActionPlaceholder('View')} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors border border-transparent hover:border-sky-200" title="View Details">
+                             <button onClick={() => handleViewUser(user)} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors border border-transparent hover:border-sky-200" title="View Details">
                                <Eye className="w-4 h-4" />
                              </button>
-                             <button onClick={() => handleActionPlaceholder('Edit')} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-200" title="Edit User">
+                             <button onClick={() => handleEditUser(user)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-200" title="Edit User">
                                <Edit2 className="w-4 h-4" />
                              </button>
                              <button onClick={() => handleDeleteUser(user._id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="Delete User">

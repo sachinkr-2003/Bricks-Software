@@ -42,6 +42,53 @@ const WebsiteLeads = () => {
     });
   };
 
+  const handleViewLead = (lead) => {
+    Swal.fire({
+      title: 'Inquiry Details',
+      html: `
+        <div style="text-align: left; padding: 10px; font-family: sans-serif;">
+          <p style="margin-bottom: 8px;"><strong>Date:</strong> ${new Date(lead.createdAt).toLocaleString()}</p>
+          <p style="margin-bottom: 8px;"><strong>Name:</strong> ${lead.name}</p>
+          <p style="margin-bottom: 8px;"><strong>Phone:</strong> ${lead.phone}</p>
+          <p style="margin-bottom: 8px;"><strong>Email:</strong> ${lead.email}</p>
+          <p style="margin-bottom: 8px;"><strong>Status:</strong> ${lead.status}</p>
+          <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;"/>
+          <p style="margin-bottom: 5px;"><strong>Message:</strong></p>
+          <p style="background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px;">${lead.message || 'No message provided.'}</p>
+        </div>
+      `,
+      confirmButtonColor: '#ea580c',
+      width: '600px'
+    });
+  };
+
+  const handleEditLead = async (lead) => {
+     const { value: newStatus } = await Swal.fire({
+      title: 'Edit Lead Status',
+      input: 'select',
+      inputOptions: {
+        'New': 'New',
+        'Contacted': 'Contacted',
+        'Converted': 'Converted (Green)'
+      },
+      inputPlaceholder: 'Select status',
+      inputValue: lead.status,
+      showCancelButton: true,
+      confirmButtonColor: '#ea580c',
+      inputValidator: (value) => {
+        return new Promise((resolve) => {
+          if (value) resolve();
+          else resolve('You need to select a status');
+        });
+      }
+    });
+
+    if (newStatus && newStatus !== lead.status) {
+      // Actually sending whatever status is mapped
+      handleUpdateStatus(lead._id, newStatus.includes('Converted') ? 'Converted' : newStatus);
+    }
+  };
+
   const handleDeleteLead = (id) => {
     Swal.fire({
       title: 'Are you sure?',
@@ -127,10 +174,10 @@ const WebsiteLeads = () => {
                              <CheckCircle className="w-4 h-4" />
                            </button>
                         )}
-                        <button onClick={() => handleActionPlaceholder('View')} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors border border-transparent hover:border-sky-200" title="View Lead">
+                        <button onClick={() => handleViewLead(lead)} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors border border-transparent hover:border-sky-200" title="View Lead">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleActionPlaceholder('Edit')} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-200" title="Edit Lead">
+                        <button onClick={() => handleEditLead(lead)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors border border-transparent hover:border-emerald-200" title="Edit Lead">
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDeleteLead(lead._id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="Delete Lead">
