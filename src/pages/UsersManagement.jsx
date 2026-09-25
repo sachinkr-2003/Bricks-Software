@@ -76,16 +76,20 @@ const UsersManagement = () => {
     try {
       if (editMode) {
         const payload = { name, phone, role, profileImage };
-        if (pin) payload.pin = pin; // Only send if updating password
-        await api.put(`/auth/${editingUserId}`, payload);
+        if (pin) payload.pin = pin;
+        const { data: updatedUser } = await api.put(`/auth/${editingUserId}`, payload);
+        // Optimistically update local state immediately
+        setUsers(prev => prev.map(u => u._id === editingUserId ? { ...u, ...updatedUser } : u));
         Swal.fire({ icon: 'success', title: 'Updated!', text: 'User successfully updated.', confirmButtonColor: '#ea580c', timer: 2000 });
       } else {
-        await api.post('/auth/register', { name, phone, pin, role, profileImage });
+        const { data: newUser } = await api.post('/auth/register', { name, phone, pin, role, profileImage });
+        // Optimistically add new user to the top of the list immediately
+        setUsers(prev => [newUser, ...prev]);
         Swal.fire({ icon: 'success', title: 'Created!', text: 'User successfully registered.', confirmButtonColor: '#ea580c', timer: 2000 });
       }
       resetForm();
       setIsModalOpen(false);
-      await fetchUsers(); // Refresh list
+      fetchUsers(); // Sync in background
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Error', text: err.response?.data?.message || 'Error saving user', confirmButtonColor: '#ea580c' });
     } finally {
@@ -167,6 +171,13 @@ const UsersManagement = () => {
             + New User
           </button>
         </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 border border-red-200 text-sm flex justify-between items-center">
+          <span>⚠ {error}</span>
+          <button onClick={fetchUsers} className="text-xs font-bold underline">Retry</button>
+        </div>
+      )}
 
       <div className="w-full">
             
