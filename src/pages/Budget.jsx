@@ -1,30 +1,58 @@
-import React, { useState } from 'react';
-import { IndianRupee, HardHat, Hammer, FileText, CheckCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { IndianRupee, HardHat, Hammer, FileText, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 const Budget = () => {
   const [activeTab, setActiveTab] = useState('Overview');
+  const [isLoading, setIsLoading] = useState(true);
+  const [finances, setFinances] = useState({
+    totalContractValue: 5000000, // Fixed baseline
+    amountPaid: 0,
+    materialCost: 0,
+    labourCost: 0,
+    otherExpenses: 0,
+    approvedAdditional: 0,
+  });
 
-  // Hardcoded financial data for the UI
-  const finances = {
-    totalContractValue: 5000000,
-    amountPaid: 3200000,
-    materialCost: 2000000,
-    labourCost: 800000,
-    otherExpenses: 250000,
-    approvedAdditional: 150000,
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [newExpense, setNewExpense] = useState({ title: '', amount: '', paidTo: '', remarks: '' });
+
+  const fetchBudget = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/analytics/budget');
+      setFinances(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBudget();
+  }, []);
+
+  const handleExpenseSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...newExpense, amount: Number(newExpense.amount) };
+      await api.post('/expenses', payload);
+      alert('Expense request submitted');
+      setIsExpenseModalOpen(false);
+      setNewExpense({ title: '', amount: '', paidTo: '', remarks: '' });
+      fetchBudget();
+    } catch (error) {
+      console.error('Error submitting expense:', error);
+      alert('Failed to submit expense');
+    }
   };
 
   const amountRemaining = finances.totalContractValue - finances.amountPaid;
-  const utilizedPercentage = Math.round((finances.amountPaid / finances.totalContractValue) * 100);
+  const utilizedPercentage = Math.round((finances.amountPaid / finances.totalContractValue) * 100) || 0;
 
   // Example Milestones
-  const milestones = [
-    { id: 1, stage: 'Booking/Agreement', percent: '10%', amount: '₹5,00,000', status: 'Paid', date: '01 Aug 2026' },
-    { id: 2, stage: 'Plinth Level', percent: '20%', amount: '₹10,00,000', status: 'Paid', date: '20 Aug 2026' },
-    { id: 3, stage: 'Ground Floor Roof Slab', percent: '25%', amount: '₹12,50,000', status: 'Paid', date: '05 Sep 2026' },
-    { id: 4, stage: 'Brickwork & Plastering', percent: '20%', amount: '₹10,00,000', status: 'Pending', date: 'Expected 30 Sep' },
-    { id: 5, stage: 'Flooring (Handover)', percent: '25%', amount: '₹12,50,000', status: 'Pending', date: 'Expected Nov 2026' },
-  ];
+  const milestones = [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 relative text-sm">
@@ -37,7 +65,11 @@ const Budget = () => {
         </div>
         
         {/* Tabs */}
-        <div className="flex border border-slate-300 bg-slate-50 p-1">
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="bg-slate-100 text-slate-700 font-bold py-1.5 px-4 rounded-none transition-colors text-xs border border-slate-300 hover:bg-slate-200">
+            Export / Print
+          </button>
+          <div className="flex border border-slate-300 bg-slate-50 p-1">
           <button 
             onClick={() => setActiveTab('Overview')}
             className={`px-4 py-1.5 font-bold transition-colors ${activeTab === 'Overview' ? 'bg-white shadow-sm border border-slate-200 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
@@ -50,6 +82,7 @@ const Budget = () => {
           >
             Payments History
           </button>
+        </div>
         </div>
       </div>
 
@@ -120,15 +153,7 @@ const Budget = () => {
                  </div>
                  
                  <div className="space-y-3">
-                   <div className="bg-slate-800 p-3 flex justify-between items-center">
-                      <div>
-                         <span className="block text-xs font-bold text-white">Borewell Motor Change</span>
-                         <span className="block text-[10px] text-orange-400 font-bold uppercase mt-0.5">Pending Approval</span>
-                      </div>
-                      <span className="font-bold text-white">₹25,000</span>
-                   </div>
-                   
-                   <button className="w-full py-2 bg-white text-slate-900 font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors">
+                   <button onClick={() => setIsExpenseModalOpen(true)} className="w-full py-2 bg-white text-slate-900 font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-colors">
                      Request New Expense
                    </button>
                  </div>
@@ -185,7 +210,76 @@ const Budget = () => {
            </div>
         </div>
       )}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-4 flex justify-between items-center text-white">
+              <h2 className="font-bold text-sm uppercase tracking-wider">Request New Expense</h2>
+              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleExpenseSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Expense Title</label>
+                <input 
+                  type="text" 
+                  value={newExpense.title}
+                  onChange={(e) => setNewExpense({...newExpense, title: e.target.value})}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium"
+                  placeholder="e.g. Extra Sand Delivery"
+                  required
+                />
+              </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Amount (₹)</label>
+                <input 
+                  type="number" 
+                  value={newExpense.amount}
+                  onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Paid To / Supplier</label>
+                <input 
+                  type="text" 
+                  value={newExpense.paidTo}
+                  onChange={(e) => setNewExpense({...newExpense, paidTo: e.target.value})}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium"
+                  placeholder="e.g. Ramesh Traders"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Remarks (Optional)</label>
+                <input 
+                  type="text" 
+                  value={newExpense.remarks}
+                  onChange={(e) => setNewExpense({...newExpense, remarks: e.target.value})}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium"
+                  placeholder="..."
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  className="w-full bg-orange-600 text-white font-bold py-3 hover:bg-slate-900 transition-colors uppercase tracking-widest text-sm"
+                >
+                  Submit Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

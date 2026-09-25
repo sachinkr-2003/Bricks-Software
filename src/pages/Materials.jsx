@@ -1,68 +1,63 @@
 import React, { useState } from 'react';
 import { Plus, Filter, X } from 'lucide-react';
 
+import api from '../services/api';
+
 const Materials = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [bills, setBills] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // State to hold the bills
-  const [bills, setBills] = useState([
-    { id: 1, material: 'Ultratech Cement', quantity: '100 Bags', supplier: 'Gupta Traders', date: '18 Sep 2026', amount: '₹38,000', status: 'Paid', photo: true },
-    { id: 2, material: 'Tata Tiscon Steel', quantity: '2 Tonne', supplier: 'Sharma Steels', date: '16 Sep 2026', amount: '₹1,20,000', status: 'Pending', photo: true },
-    { id: 3, material: 'Red Bricks', quantity: '5000 Pcs', supplier: 'Rao Brick Kiln', date: '12 Sep 2026', amount: '₹35,000', status: 'Paid', photo: false },
-    { id: 4, material: 'River Sand', quantity: '4 Trucks', supplier: 'Delhi Sands Co.', date: '10 Sep 2026', amount: '₹18,000', status: 'Paid', photo: true },
-    { id: 5, material: 'Crushed Stone', quantity: '1 Truck', supplier: 'Gitti Suppliers', date: '08 Sep 2026', amount: '₹9,500', status: 'Pending', photo: false },
-  ]);
+  // Fetch Bills from DB
+  const fetchBills = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/materials');
+      setBills(data);
+    } catch (error) {
+      console.error('Error fetching materials:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // State for new bill form
+  React.useEffect(() => {
+    fetchBills();
+  }, []);
+
   const [formData, setFormData] = useState({
-    date: '',
-    material: '',
+    materialName: '',
     quantity: '',
-    supplier: '',
-    amount: '',
+    unit: 'Bags',
+    supplierName: '',
+    totalCost: '',
     status: 'Pending',
-    photo: false,
   });
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddBill = async (e) => {
+    e.preventDefault();
+    try {
+      // In web we don't upload images right now via this specific form, keeping it simple
+      await api.post('/materials', formData);
+      setIsAddModalOpen(false);
+      setFormData({ materialName: '', quantity: '', unit: 'Bags', supplierName: '', totalCost: '', status: 'Pending' });
+      fetchBills(); // refresh list
+    } catch (error) {
+      alert('Error creating bill');
+    }
+  };
 
   // Filter bills based on current selection
   const filteredBills = bills.filter(bill => {
     if (filterStatus === 'All') return true;
     return bill.status === filterStatus;
   });
-
-  // Form input handler
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' || type === 'file' ? (type === 'file' ? !!e.target.files.length : checked) : value
-    }));
-  };
-
-  // Submit handler
-  const handleAddBill = (e) => {
-    e.preventDefault();
-    const newEntry = {
-      id: bills.length + 1,
-      ...formData,
-      amount: `₹${formData.amount}` // Formatting basic amount
-    };
-    
-    setBills([newEntry, ...bills]);
-    setIsAddModalOpen(false);
-    
-    // Reset Form
-    setFormData({
-      date: '',
-      material: '',
-      quantity: '',
-      supplier: '',
-      amount: '',
-      status: 'Pending',
-      photo: false,
-    });
-  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 relative">
@@ -115,14 +110,18 @@ const Materials = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredBills.length > 0 ? (
+              {isLoading ? (
+                <tr><td colSpan="7" className="text-center py-8">Loading...</td></tr>
+              ) : filteredBills.length > 0 ? (
                 filteredBills.map((bill) => (
-                  <tr key={bill.id} className="bg-white hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{bill.date}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900 border border-slate-300">{bill.material}</td>
-                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{bill.quantity}</td>
-                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{bill.supplier}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900 border border-slate-300">{bill.amount}</td>
+                  <tr key={bill._id} className="bg-white hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-slate-900 border border-slate-300">
+                      {new Date(bill.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-900 border border-slate-300">{bill.materialName}</td>
+                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{bill.quantity} {bill.unit}</td>
+                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{bill.supplierName}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900 border border-slate-300">₹{bill.totalCost}</td>
                     <td className="px-4 py-3 font-medium border border-slate-300">
                       {bill.status === 'Paid' ? (
                         <span className="text-green-600 font-bold">Paid</span>
@@ -131,10 +130,10 @@ const Materials = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center border border-slate-300">
-                      {bill.photo ? (
-                        <button className="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer">
+                      {bill.billImage ? (
+                        <a href={`http://localhost:5000${bill.billImage}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer">
                           View
-                        </button>
+                        </a>
                       ) : (
                         <span className="text-slate-400 font-medium">N/A</span>
                       )}

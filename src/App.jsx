@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
@@ -10,9 +10,26 @@ import Warranty from './pages/Warranty';
 import HumanResources from './pages/HumanResources';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import WebsiteLeads from './pages/WebsiteLeads';
+import UsersManagement from './pages/UsersManagement';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem('token')
+  );
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+  };
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -29,7 +46,9 @@ function App() {
           <Route path="budget" element={<Budget />} />
           <Route path="warranty" element={<Warranty />} />
           <Route path="resources" element={<HumanResources />} />
-          <Route path="profile" element={<Profile onLogout={() => setIsAuthenticated(false)} />} />
+          <Route path="leads" element={<WebsiteLeads />} />
+          <Route path="users" element={<UsersManagement />} />
+          <Route path="profile" element={<Profile onLogout={handleLogout} />} />
         </Route>
       </Routes>
     </BrowserRouter>

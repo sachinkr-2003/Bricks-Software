@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Calendar, Info, Clock, Plus, PenTool, CheckCircle } from 'lucide-react';
+import api from '../services/api';
 
 const Warranty = () => {
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Warranty Details
   const warrantyPeriod = "11 Years";
@@ -10,10 +12,20 @@ const Warranty = () => {
   const endDate = "01 Jan 2038";
 
   // Service History
-  const [serviceHistory, setServiceHistory] = useState([
-    { id: 1, date: '15 Mar 2027', issue: 'Minor seepage near bathroom window', status: 'Resolved', technician: 'Ramesh Plumbers' },
-    { id: 2, date: '10 Aug 2028', issue: 'Annual Structural Inspection', status: 'Completed', technician: 'Brick By Brick Engineers' },
-  ]);
+  const [serviceHistory, setServiceHistory] = useState([]);
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  const fetchComplaints = async () => {
+    try {
+      const { data } = await api.get('/warranties');
+      setServiceHistory(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -26,19 +38,20 @@ const Warranty = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newRequest = {
-      id: serviceHistory.length + 1,
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      issue: formData.description,
-      status: 'Pending Review',
-      technician: 'Unassigned',
-    };
-    
-    setServiceHistory([newRequest, ...serviceHistory]);
-    setIsComplaintModalOpen(false);
-    setFormData({ issueType: 'Seepage', description: '' });
+    setIsLoading(true);
+    try {
+      await api.post('/warranties', formData);
+      setIsComplaintModalOpen(false);
+      setFormData({ issueType: 'Seepage', description: '' });
+      fetchComplaints();
+    } catch (err) {
+      alert('Error creating complaint');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -146,9 +159,9 @@ const Warranty = () => {
             </thead>
             <tbody>
               {serviceHistory.map((service) => (
-                <tr key={service.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-slate-900 border-b border-r border-slate-200 font-medium text-sm">{service.date}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900 border-b border-r border-slate-200 truncate max-w-[250px]">{service.issue}</td>
+                <tr key={service._id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 text-slate-900 border-b border-r border-slate-200 font-medium text-sm">{new Date(service.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 font-bold text-slate-900 border-b border-r border-slate-200 truncate max-w-[250px]">{service.issueType}: {service.description}</td>
                   <td className="px-4 py-3 text-slate-600 border-b border-r border-slate-200">{service.technician}</td>
                   <td className="px-4 py-3 border-b border-slate-200 font-bold">
                     {service.status === 'Resolved' && <span className="text-green-600">{service.status}</span>}

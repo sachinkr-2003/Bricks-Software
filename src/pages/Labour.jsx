@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Filter, Users, Search, X } from 'lucide-react';
 import Swal from 'sweetalert2';
+import api from '../services/api';
 
 // Initial pre-added master list of all labours
 const initialMasterLabours = [
@@ -14,27 +15,20 @@ const initialMasterLabours = [
 ];
 
 const Labour = () => {
-  const [filterDate, setFilterDate] = useState('Today');
+  const [filterDate, setFilterDate] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [masterLabours, setMasterLabours] = useState(initialMasterLabours);
+  const [masterLabours, setMasterLabours] = useState([]);
+  const [labourRecords, setLabourRecords] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-
-  // Initial Attendance Records
-  const [labourRecords, setLabourRecords] = useState([
-    { id: 1, date: '19 Sep 2026', name: 'Raju (L-101)', category: 'Mistri (Mason)', present: true, hours: '8', cost: '₹800' },
-    { id: 2, name: 'Ramesh (L-102)', date: '19 Sep 2026', category: 'Mistri (Mason)', present: true, hours: '8', cost: '₹800' },
-    { id: 3, name: 'Suresh (L-103)', date: '19 Sep 2026', category: 'Mazdoor (Helper)', present: true, hours: '8', cost: '₹500' },
-    { id: 4, name: 'Dinesh (L-104)', date: '19 Sep 2026', category: 'Mazdoor (Helper)', present: false, hours: '-', cost: '₹0' },
-    { id: 5, name: 'Kamlesh (L-105)', date: '19 Sep 2026', category: 'Plumber', present: true, hours: '4', cost: '₹600' },
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Form State
   const [formData, setFormData] = useState({
-    date: '19 Sep 2026',
-    selectedLabourId: '', // Added this
+    date: new Date().toISOString().split('T')[0],
+    selectedLabourId: '', 
     name: '',
     category: '',
     present: true,
@@ -42,26 +36,37 @@ const Labour = () => {
     cost: '',
   });
 
-  // Handle Dropdown selection for Labour Name
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [resReq, attReq] = await Promise.all([
+        api.get('/resources?type=labour'),
+        api.get('/attendance')
+      ]);
+      setMasterLabours(resReq.data);
+      setLabourRecords(attReq.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
   const handleLabourSelect = (e) => {
     const selectedId = e.target.value;
-    const labour = masterLabours.find(l => l.id === selectedId);
+    const labour = masterLabours.find(l => l._id === selectedId);
     
     if (labour) {
       setFormData(prev => ({
         ...prev,
         selectedLabourId: selectedId,
-        name: `${labour.name} (${labour.id})`,
+        name: `${labour.name}`,
         category: labour.category,
         cost: labour.defaultCost.toString(),
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        selectedLabourId: '',
-        name: '',
-        category: '',
-        cost: '',
       }));
     }
   };
@@ -74,97 +79,72 @@ const Labour = () => {
     }));
   };
 
-  const [registerForm, setRegisterForm] = useState({ name: '', category: 'Mazdoor (Helper)', defaultCost: '' });
-  
+  const [registerForm, setRegisterForm] = useState({ name: '', phone: '', category: 'Mazdoor (Helper)', defaultCost: '' });
   const handleRegisterInput = (e) => setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    const newId = `L-${100 + masterLabours.length + 1}`;
-    setMasterLabours([...masterLabours, { id: newId, name: registerForm.name, category: registerForm.category, defaultCost: Number(registerForm.defaultCost) }]);
-    
-    setIsRegisterModalOpen(false);
-    setRegisterForm({ name: '', category: 'Mazdoor (Helper)', defaultCost: '' });
-    
-    Swal.fire({
-        title: 'Registered',
-        text: 'New Labour has been added to the master list.',
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false
-    });
+    try {
+      await api.post('/resources', { ...registerForm, type: 'labour' });
+      setIsRegisterModalOpen(false);
+      setRegisterForm({ name: '', phone: '', category: 'Mazdoor (Helper)', defaultCost: '' });
+      fetchData();
+      Swal.fire({ title: 'Registered', text: 'New Labour has been added.', icon: 'success', timer: 1500, showConfirmButton: false });
+    } catch (e) {
+      alert('Error registering');
+    }
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.selectedLabourId) {
-      Swal.fire({
-        title: 'Selection Required',
-        text: 'Please select a labour from the dropdown first.',
-        icon: 'warning',
-        confirmButtonColor: '#0f172a',
-        shape: 'square'
-      });
-      return;
-    }
+    if (!formData.selectedLabourId) return;
     
-    const newEntry = {
-      id: labourRecords.length + 1,
+    const payload = {
       date: formData.date,
-      name: formData.name,
-      category: formData.category,
-      present: formData.present,
-      cost: formData.present ? `₹${formData.cost}` : '₹0',
-      hours: formData.present ? formData.hours : '-'
+      labourId: formData.selectedLabourId,
+      status: formData.present ? 'Present' : 'Absent',
+      hours: formData.present ? Number(formData.hours) : 0,
+      advanceGiven: formData.present ? Number(formData.cost) : 0
     };
     
-    setLabourRecords([newEntry, ...labourRecords]);
-    setIsAddModalOpen(false);
-
-    Swal.fire({
-        title: 'Marked!',
-        text: 'Attendance has been successfully recorded.',
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false
-    });
-    
-    // Reset Form
-    setFormData({
-      date: '19 Sep 2026',
-      selectedLabourId: '',
-      name: '',
-      category: '',
-      present: true,
-      hours: '8',
-      cost: '',
-    });
+    try {
+      await api.post('/attendance', payload);
+      setIsAddModalOpen(false);
+      Swal.fire({ title: 'Marked!', text: 'Attendance has been recorded.', icon: 'success', timer: 1500, showConfirmButton: false });
+      
+      setFormData({ date: new Date().toISOString().split('T')[0], selectedLabourId: '', name: '', category: '', present: true, hours: '8', cost: '' });
+      fetchData();
+    } catch (e) {
+      alert('Error saving attendance');
+    }
   };
 
   // Filter Logic Component
   const filteredRecords = useMemo(() => {
     return labourRecords.filter(record => {
-      // Date filter (Mock logic - exact string match for demo)
-      const dateMatch = filterDate === 'All' ? true : (filterDate === 'Today' ? record.date === '19 Sep 2026' : record.date !== '19 Sep 2026');
+      if (!record.labourId) return false;
+      const rDateStr = new Date(record.date).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
       
-      // Category filter
-      const catMatch = filterCategory === 'All' ? true : record.category.includes(filterCategory);
+      const dateMatch = filterDate === 'All' ? true : (filterDate === 'Today' ? rDateStr === todayStr : rDateStr !== todayStr);
       
-      // Search filter
+      const catMatch = filterCategory === 'All' ? true : record.labourId.category.includes(filterCategory);
+      
       const searchStr = searchQuery.toLowerCase();
-      const searchMatch = searchQuery === '' ? true : (record.name.toLowerCase().includes(searchStr) || record.category.toLowerCase().includes(searchStr));
+      const searchMatch = searchQuery === '' ? true : (record.labourId.name.toLowerCase().includes(searchStr));
 
       return dateMatch && catMatch && searchMatch;
     });
   }, [labourRecords, filterDate, filterCategory, searchQuery]);
 
   // Calculate Today's Stats dynamically
-  const todaysRecords = labourRecords.filter(r => r.date === '19 Sep 2026');
-  const presentCount = todaysRecords.filter(r => r.present).length;
-  const totalCost = todaysRecords.reduce((sum, r) => {
-    const cleanNum = parseInt(r.cost.replace('₹', '').replace(',', '')) || 0;
-    return sum + cleanNum;
-  }, 0);
+  const todaysRecords = labourRecords.filter(r => {
+    const rDateStr = new Date(r.date).toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    return rDateStr === todayStr;
+  });
+  const presentCount = todaysRecords.filter(r => r.status === 'Present').length;
+  const totalCost = todaysRecords.reduce((sum, r) => sum + (r.advanceGiven || 0), 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 relative">
@@ -277,24 +257,30 @@ const Labour = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-500 font-medium border border-slate-300">
+                    Loading records...
+                  </td>
+                </tr>
+              ) : filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => (
-                  <tr key={record.id} className="bg-white hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{record.date}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900 border border-slate-300">{record.name}</td>
-                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{record.category}</td>
+                  <tr key={record._id} className="bg-white hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{new Date(record.date).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900 border border-slate-300">{record.labourId?.name}</td>
+                    <td className="px-4 py-3 text-slate-900 border border-slate-300">{record.labourId?.category}</td>
                     <td className="px-4 py-3 text-center font-bold border border-slate-300">
-                      {record.present ? (
+                      {record.status === 'Present' ? (
                         <span className="text-green-600">Present</span>
                       ) : (
                         <span className="text-red-600">Absent</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-slate-900 border border-slate-300">
-                      {record.hours}
+                      {record.status === 'Absent' ? '-' : record.hours}
                     </td>
                     <td className="px-4 py-3 font-bold text-slate-900 border border-slate-300 text-right">
-                      {record.cost}
+                      {record.status === 'Absent' ? '₹0' : `₹${record.advanceGiven}`}
                     </td>
                   </tr>
                 ))

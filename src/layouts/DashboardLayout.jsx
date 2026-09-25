@@ -5,6 +5,7 @@ import {
   HardHat, FileText, Settings, ShieldCheck, FilePlus, 
   UserCheck, Image as ImageIcon, IndianRupee, AlertCircle, Search, User, Clock
 } from 'lucide-react';
+import api from '../services/api';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -13,11 +14,42 @@ const DashboardLayout = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const location = useLocation();
 
+  const [notifications, setNotifications] = useState([]);
+
   useEffect(() => {
     // Tick the clock every minute
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
+
+    const fetchNotifications = async () => {
+       try {
+         const { data } = await api.get('/leads');
+         const lastViewed = localStorage.getItem('lastViewedNotifications');
+         
+         const newNotifications = data
+           .filter(lead => {
+             if (!lastViewed) return true;
+             return new Date(lead.createdAt) > new Date(lastViewed);
+           })
+           .slice(0, 5)
+           .map(lead => ({
+             id: lead._id,
+             type: 'lead',
+             title: `New Lead: ${lead.name}`,
+             desc: lead.message.length > 50 ? lead.message.substring(0, 50) + '...' : lead.message,
+             time: new Date(lead.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+             icon: UserCheck,
+             color: 'text-blue-600 bg-blue-50 border-blue-200'
+           }));
+           
+         setNotifications(newNotifications);
+       } catch (error) {
+         console.error('Error fetching notifications:', error);
+       }
+    };
+    fetchNotifications();
+
     return () => clearInterval(timer);
   }, []);
 
@@ -31,13 +63,21 @@ const DashboardLayout = () => {
     { name: 'Cost & Budget', href: '/budget', icon: Briefcase },
     { name: 'Updates', href: '/updates', icon: FileText },
     { name: 'Warranty', href: '/warranty', icon: ShieldCheck },
-    { name: 'Resources', href: '/resources', icon: Users },
+    { name: 'App Users', href: '/users', icon: UserCheck },
+    { name: 'Website Admin', href: '/leads', icon: Users },
   ];
 
-  const notifications = [
-    { id: 1, type: 'approval', title: 'Approval Required', desc: 'Additional cost of ₹25,000 for Borewell.', time: '10 mins ago', icon: AlertCircle, color: 'text-red-600 bg-red-50 border-red-200' },
-    { id: 2, type: 'payment', title: 'Payment Received', desc: '₹12,50,000 received for Milestone 3.', time: '2 hours ago', icon: IndianRupee, color: 'text-green-600 bg-green-50 border-green-200' },
-  ];
+
+
+  const handleOpenNotifications = () => {
+    setIsNotificationsOpen(true);
+    localStorage.setItem('lastViewedNotifications', new Date().toISOString());
+  };
+
+  const handleCloseNotifications = () => {
+    setIsNotificationsOpen(false);
+    setNotifications([]);
+  };
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
@@ -96,11 +136,13 @@ const DashboardLayout = () => {
 
           {/* Notifications */}
           <button 
-            onClick={() => setIsNotificationsOpen(true)}
+            onClick={handleOpenNotifications}
             className="w-10 h-10 flex items-center justify-center bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors relative border border-slate-700"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2.5 w-2 h-2 bg-orange-600 rounded-full border border-slate-800"></span>
+            {notifications.length > 0 && (
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-orange-600 rounded-full border border-slate-800"></span>
+            )}
           </button>
           
           {/* Profile Button */}
@@ -172,20 +214,20 @@ const DashboardLayout = () => {
       {/* NOTIFICATION SLIDEOVER */}
       {isNotificationsOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsNotificationsOpen(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={handleCloseNotifications}></div>
           <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col border-l border-slate-200">
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <div>
                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Update Center</h2>
                  <p className="text-xs text-slate-500 font-medium mt-1">Recent client & manager activity</p>
               </div>
-              <button onClick={() => setIsNotificationsOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-colors">
+              <button onClick={handleCloseNotifications} className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-colors">
                 <X className="w-4 h-4 text-slate-900" />
               </button>
             </div>
             
             <div className="overflow-y-auto flex-1 p-3 space-y-3 bg-slate-100">
-              {notifications.map(notif => (
+              {notifications.length > 0 ? notifications.map(notif => (
                 <div key={notif.id} className={`p-4 bg-white border shadow-sm ${notif.color} rounded-none`}>
                    <div className="flex gap-3">
                       <div className="mt-1">
@@ -198,7 +240,11 @@ const DashboardLayout = () => {
                       </div>
                    </div>
                 </div>
-              ))}
+              )) : (
+                 <div className="text-center p-8 text-slate-500 font-medium text-sm">
+                    No new notifications.
+                 </div>
+              )}
             </div>
           </div>
         </div>

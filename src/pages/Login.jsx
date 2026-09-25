@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { AlignRight, HardHat, Lock, Phone } from 'lucide-react';
+import api from '../services/api';
 
 const Login = ({ onLogin }) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg('');
     
-    // Simulate Random Login (Allow any credential but simulate API delay)
-    setTimeout(() => {
+    try {
+      const response = await api.post('/auth/login', { phone, pin: password });
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data));
+      onLogin();
+    } catch (error) {
       setIsLoading(false);
-      onLogin(); // Tell App.jsx we are authenticated
-    }, 1000);
+      setErrorMsg(error.response?.data?.message || 'Login failed. Please check credentials.');
+    }
   };
 
   return (
@@ -73,6 +80,12 @@ const Login = ({ onLogin }) => {
                 <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Manager Login</h2>
                 <p className="text-slate-500 font-medium">Enter your credentials to access the site database.</p>
              </div>
+
+             {errorMsg && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+                  {errorMsg}
+                </div>
+             )}
 
              <form onSubmit={handleSubmit} className="space-y-6">
                 

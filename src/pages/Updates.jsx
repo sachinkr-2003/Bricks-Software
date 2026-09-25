@@ -1,37 +1,32 @@
 import React, { useState } from 'react';
 import { Plus, Filter, Search, Bell, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import api from '../services/api';
 
 const Updates = () => {
+
   const [filterType, setFilterType] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Initial Updates List
-  const [updatesList, setUpdatesList] = useState([
-    {
-      id: 1,
-      date: '19 Sep 2026',
-      type: 'Daily',
-      completed: 'Completed wooden shuttering for the ground floor hall area.',
-      inProgress: 'Steel mesh binding is 50% done on the north side.',
-      nextPlan: 'Complete the steel mesh binding tomorrow so concrete can be poured the day after.',
-      issues: 'None',
-      photos: [
-        'https://images.unsplash.com/photo-1541888086425-d81bb19240f5?ixlib=rb-4.0.3&w=400&q=80',
-        'https://images.unsplash.com/photo-1503387762-592deb58ef4e?ixlib=rb-4.0.3&w=400&q=80'
-      ]
-    },
-    {
-      id: 2,
-      date: '12 Sep 2026',
-      type: 'Weekly',
-      completed: 'All brickwork for ground floor interior walls finished. Water curing completed.',
-      inProgress: 'Plumbing rough-ins in bathrooms.',
-      nextPlan: 'Start shuttering process for the slab next week.',
-      issues: 'Slight delay in plumbing materials delivery (expected tomorrow morning).',
-      photos: []
+  const [updatesList, setUpdatesList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchUpdates = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/updates');
+      setUpdatesList(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
+
+  React.useEffect(() => {
+    fetchUpdates();
+  }, []);
 
   const [formData, setFormData] = useState({
     type: 'Daily',
@@ -40,32 +35,52 @@ const Updates = () => {
     nextPlan: '',
     issues: '',
   });
+  
+  const [selectedFiles, setSelectedFiles] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddSubmit = (e) => {
+  const handleFileChange = (e) => {
+    setSelectedFiles(e.target.files);
+  };
+
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    const newEntry = {
-      id: updatesList.length + 1,
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      ...formData,
-      photos: []
-    };
-    
-    setUpdatesList([newEntry, ...updatesList]);
-    setIsAddModalOpen(false);
-    
-    // Reset Form
-    setFormData({
-      type: 'Daily',
-      completed: '',
-      inProgress: '',
-      nextPlan: '',
-      issues: '',
-    });
+    try {
+      const data = new FormData();
+      data.append('date', new Date().toISOString());
+      data.append('type', formData.type);
+      data.append('workCompleted', formData.completed);
+      data.append('workInProgress', formData.inProgress);
+      data.append('nextPlan', formData.nextPlan);
+      data.append('issues', formData.issues);
+      
+      if (selectedFiles) {
+        Array.from(selectedFiles).forEach(file => {
+          data.append('images', file);
+        });
+      }
+
+      await api.post('/updates', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setIsAddModalOpen(false);
+      setFormData({
+        type: 'Daily',
+        completed: '',
+        inProgress: '',
+        nextPlan: '',
+        issues: '',
+      });
+      setSelectedFiles(null);
+      fetchUpdates();
+    } catch (error) {
+      alert('Error adding update');
+    }
   };
 
   const filteredUpdates = filterType === 'All' ? updatesList : updatesList.filter(u => u.type === filterType);
@@ -107,6 +122,9 @@ const Updates = () => {
              </div>
           </div>
 
+          <button onClick={() => window.print()} className="bg-slate-100 text-slate-700 font-bold py-2 px-5 rounded-none transition-colors border border-slate-300 hover:bg-slate-200">
+            Export PDF
+          </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
             className="bg-slate-900 text-white font-medium py-2 px-5 rounded-none hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shrink-0 border border-slate-900 w-full xl:w-auto"
@@ -119,14 +137,20 @@ const Updates = () => {
 
       {/* Updates Timeline/List */}
       <div className="space-y-6">
-        {filteredUpdates.map((update) => (
-          <div key={update.id} className="bg-white border border-slate-300 shadow-sm p-0 rounded-none overflow-hidden flex flex-col md:flex-row">
+        {isLoading ? (
+          <div className="text-center p-8 text-slate-500 font-bold">Loading updates...</div>
+        ) : filteredUpdates.length === 0 ? (
+          <div className="text-center p-8 text-slate-500 font-bold">No updates found.</div>
+        ) : filteredUpdates.map((update) => {
+          const uDate = new Date(update.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).split(' ');
+          return (
+          <div key={update._id} className="bg-white border border-slate-300 shadow-sm p-0 rounded-none overflow-hidden flex flex-col md:flex-row">
             
             {/* Left Box: Date and Type */}
             <div className="bg-slate-50 md:w-48 shrink-0 p-6 border-b md:border-b-0 md:border-r border-slate-300 flex flex-col justify-center items-center text-center">
                <p className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-2">{update.type} Update</p>
                <h2 className="text-xl font-bold text-slate-900 leading-tight">
-                 {update.date.split(' ')[0]} <br/> {update.date.split(' ')[1]} {update.date.split(' ')[2]}
+                 {uDate[0]} <br/> {uDate[1]} {uDate[2]}
                </h2>
             </div>
             
@@ -138,13 +162,13 @@ const Updates = () => {
                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase mb-2">
                      <CheckCircle className="w-4 h-4 text-green-600" /> Work Completed
                    </h3>
-                   <p className="text-slate-700 text-sm">{update.completed}</p>
+                   <p className="text-slate-700 text-sm">{update.workCompleted}</p>
                  </div>
                  <div>
                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase mb-2">
                      <Clock className="w-4 h-4 text-blue-600" /> In Progress
                    </h3>
-                   <p className="text-slate-700 text-sm">{update.inProgress}</p>
+                   <p className="text-slate-700 text-sm">{update.workInProgress}</p>
                  </div>
                </div>
 
@@ -155,21 +179,21 @@ const Updates = () => {
                  </div>
                  <div>
                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase mb-2">
-                     <AlertTriangle className={`w-4 h-4 ${update.issues.toLowerCase() !== 'none' ? 'text-red-600' : 'text-slate-400'}`} /> 
+                     <AlertTriangle className={`w-4 h-4 ${(update.issues || '').toLowerCase() !== 'none' ? 'text-red-600' : 'text-slate-400'}`} /> 
                      Issues / Delays
                    </h3>
-                   <p className={`text-sm ${update.issues.toLowerCase() !== 'none' ? 'text-red-600 font-medium' : 'text-slate-500'}`}>{update.issues}</p>
+                   <p className={`text-sm ${(update.issues || '').toLowerCase() !== 'none' ? 'text-red-600 font-medium' : 'text-slate-500'}`}>{update.issues || 'None'}</p>
                  </div>
                </div>
 
                {/* Photos Section */}
-               {update.photos && update.photos.length > 0 && (
+               {update.images && update.images.length > 0 && (
                  <div className="pt-4 border-t border-slate-100">
                     <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Live Photos / Videos</h3>
                     <div className="flex flex-wrap gap-3">
-                      {update.photos.map((img, i) => (
+                      {update.images.map((img, i) => (
                         <div key={i} className="w-24 h-24 bg-slate-200 border border-slate-300 relative group cursor-pointer overflow-hidden">
-                          <img src={img} alt="Update" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                          <img src={`http://localhost:5000${img}`} alt="Update" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                         </div>
                       ))}
                     </div>
@@ -178,7 +202,8 @@ const Updates = () => {
 
             </div>
           </div>
-        ))}
+        )
+        })}
       </div>
 
       {/* ADD UPDATE MODAL */}
@@ -231,7 +256,7 @@ const Updates = () => {
               
               <div className="space-y-1.5">
                 <label className="font-bold">Upload Photos / Videos</label>
-                <input type="file" multiple name="fileUpload" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900 bg-slate-50 text-slate-500" />
+                <input type="file" multiple onChange={handleFileChange} name="fileUpload" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900 bg-slate-50 text-slate-500" />
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 mt-4 border-t border-slate-200">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Truck, Plus, Search, Building2 } from 'lucide-react';
+import api from '../services/api';
 
 const HumanResources = () => {
   const [activeTab, setActiveTab] = useState('Labours');
@@ -10,41 +11,60 @@ const HumanResources = () => {
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
 
   // Mock Master Data
-  const [labours, setLabours] = useState([
-    { id: 'L-101', name: 'Raju', category: 'Mistri (Mason)', wage: '₹800/day' },
-    { id: 'L-102', name: 'Ramesh', category: 'Mistri (Mason)', wage: '₹800/day' },
-    { id: 'L-103', name: 'Suresh', category: 'Mazdoor (Helper)', wage: '₹500/day' },
-  ]);
+  const [labours, setLabours] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [vendors, setVendors] = useState([
-    { id: 'V-201', name: 'Shree Building Materials', category: 'Cement & Sand', contact: '+91 9876543210' },
-    { id: 'V-202', name: 'IronWorks India', category: 'TMT & Steel', contact: '+91 9123456780' },
-    { id: 'V-203', name: 'Local Brick Kiln', category: 'Bricks & Blocks', contact: '+91 9988776655' },
-  ]);
+  React.useEffect(() => {
+    fetchResources();
+  }, []);
+
+  const fetchResources = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/resources');
+      setLabours(data.filter(r => r.type === 'labour'));
+      setVendors(data.filter(r => r.type === 'vendor'));
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle Add Form
-  const handleAddSubmit = (e, type) => {
+  const handleAddSubmit = async (e, type) => {
     e.preventDefault();
-    if (type === 'labour') {
-      const formData = new FormData(e.target);
-      const newLabour = {
-        id: `L-${100 + labours.length + 1}`,
-        name: formData.get('name'),
-        category: formData.get('category'),
-        wage: `₹${formData.get('wage')}/day`,
-      };
-      setLabours([...labours, newLabour]);
-      setIsLabourModalOpen(false);
-    } else {
-      const formData = new FormData(e.target);
-      const newVendor = {
-        id: `V-${200 + vendors.length + 1}`,
-        name: formData.get('name'),
-        category: formData.get('category'),
-        contact: formData.get('contact'),
-      };
-      setVendors([...vendors, newVendor]);
-      setIsVendorModalOpen(false);
+    setIsLoading(true);
+    const formData = new FormData(e.target);
+    
+    try {
+      if (type === 'labour') {
+        const payload = {
+          name: formData.get('name'),
+          category: formData.get('category'),
+          type: 'labour',
+          defaultCost: Number(formData.get('wage') || 0)
+        };
+        await api.post('/resources', payload);
+        setIsLabourModalOpen(false);
+      } else {
+        const payload = {
+          name: formData.get('name'),
+          category: 'Vendor/Supplier', // Fixed for vendor according to backend model enum
+          phone: formData.get('contact'),
+          type: 'vendor',
+          defaultCost: 0
+        };
+        await api.post('/resources', payload);
+        setIsVendorModalOpen(false);
+      }
+      fetchResources();
+    } catch(err) {
+      console.error(err);
+      alert('Error creating resource');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -116,11 +136,11 @@ const HumanResources = () => {
                 </thead>
                 <tbody>
                   {filteredLabours.map(labour => (
-                    <tr key={labour.id} className="hover:bg-slate-50 border-b border-slate-200">
-                      <td className="px-5 py-3 font-bold text-slate-500 border-r border-slate-200">{labour.id}</td>
+                    <tr key={labour._id} className="hover:bg-slate-50 border-b border-slate-200">
+                      <td className="px-5 py-3 font-bold text-slate-500 border-r border-slate-200">{labour._id.slice(-6).toUpperCase()}</td>
                       <td className="px-5 py-3 font-bold text-slate-900 border-r border-slate-200">{labour.name}</td>
                       <td className="px-5 py-3 text-slate-700 border-r border-slate-200">{labour.category}</td>
-                      <td className="px-5 py-3 font-bold text-green-700">{labour.wage}</td>
+                      <td className="px-5 py-3 font-bold text-green-700">₹{labour.defaultCost} / day</td>
                     </tr>
                   ))}
                 </tbody>
@@ -137,11 +157,11 @@ const HumanResources = () => {
                 </thead>
                 <tbody>
                   {filteredVendors.map(vendor => (
-                    <tr key={vendor.id} className="hover:bg-slate-50 border-b border-slate-200">
-                      <td className="px-5 py-3 font-bold text-slate-500 border-r border-slate-200">{vendor.id}</td>
+                    <tr key={vendor._id} className="hover:bg-slate-50 border-b border-slate-200">
+                      <td className="px-5 py-3 font-bold text-slate-500 border-r border-slate-200">{vendor._id.slice(-6).toUpperCase()}</td>
                       <td className="px-5 py-3 font-bold text-slate-900 border-r border-slate-200 flex items-center gap-2"><Building2 className="w-4 h-4 text-slate-400"/> {vendor.name}</td>
                       <td className="px-5 py-3 text-slate-700 border-r border-slate-200">{vendor.category}</td>
-                      <td className="px-5 py-3 font-medium text-slate-600">{vendor.contact}</td>
+                      <td className="px-5 py-3 font-medium text-slate-600">{vendor.phone || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>

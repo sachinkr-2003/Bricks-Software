@@ -1,17 +1,50 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Target, Activity, CalendarCheck, CalendarDays, CheckCircle2, Clock, Camera, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import api from '../services/api';
 
 const Dashboard = () => {
-  const materialUsageChartData = [
-    { date: '12 Sep', amount: 15000 },
-    { date: '13 Sep', amount: 28000 },
-    { date: '14 Sep', amount: 42000 },
-    { date: '15 Sep', amount: 38000 },
-    { date: '16 Sep', amount: 25000 },
-    { date: '17 Sep', amount: 55000 },
-    { date: '18 Sep', amount: 41000 },
-  ];
+  const [dashboardStats, setDashboardStats] = useState({ totalProjects: 0, totalActiveWorkers: 0 });
+  const [budgetStats, setBudgetStats] = useState({ materialCost: 0, amountPaid: 0 });
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [newBudget, setNewBudget] = useState('');
+  const [newLimit, setNewLimit] = useState('');
+
+  const fetchData = async () => {
+    try {
+      const [dashRes, budgetRes] = await Promise.all([
+        api.get('/analytics/dashboard'),
+        api.get('/analytics/budget')
+      ]);
+      setDashboardStats(dashRes.data);
+      setBudgetStats(budgetRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleUpdateConfig = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put('/projects/config', {
+        totalBudget: Number(newBudget),
+        approvedAdditional: Number(newLimit)
+      });
+      alert('Project Configuration Updated');
+      setIsSettingsModalOpen(false);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      alert('Error updating configuration');
+    }
+  };
+
+  const materialUsageChartData = [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -23,27 +56,33 @@ const Dashboard = () => {
               <CheckCircle2 className="w-6 h-6 text-white" />
             </div>
             <div>
-               <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">100% Transparency Guarantee</p>
+               <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Live Transparency Engine</p>
                <h2 className="text-2xl font-serif font-bold text-white leading-tight">Today's Snapshot</h2>
             </div>
+            <button 
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="ml-4 bg-slate-800 text-xs font-bold px-3 py-1 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              Admin Settings
+            </button>
          </div>
          
          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             <div className="bg-slate-800 p-4 border border-slate-700">
-               <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tasks Accomplished</span>
-               <span className="font-bold text-white text-sm line-clamp-2">Slab Shuttering & Steel Binding</span>
+               <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Projects</span>
+               <span className="font-bold text-white text-sm line-clamp-2">{dashboardStats.totalProjects} Active</span>
             </div>
             <div className="bg-slate-800 p-4 border border-slate-700">
-               <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Material Utilized</span>
-               <span className="font-bold text-white text-sm">45 Bags Cement, 800 Kg Steel</span>
+               <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Material Expenditure</span>
+               <span className="font-bold text-white text-sm">₹{budgetStats.materialCost.toLocaleString('en-IN')}</span>
             </div>
             <div className="bg-slate-800 p-4 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Workforce Deployed</span>
-               <span className="font-bold text-white text-sm">4 Labour Present</span>
+               <span className="font-bold text-white text-sm">{dashboardStats.totalActiveWorkers} Active Labour</span>
             </div>
             <div className="bg-slate-800 p-4 border-t-4 border-t-orange-500 border border-slate-700">
                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Expenditure</span>
-               <span className="font-bold text-green-400 text-xl tracking-tight">₹41,000</span>
+               <span className="font-bold text-green-400 text-xl tracking-tight">₹{budgetStats.amountPaid.toLocaleString('en-IN')}</span>
             </div>
          </div>
       </div>
@@ -55,12 +94,12 @@ const Dashboard = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Overall Completion</p>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">62%</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">0%</h2>
             </div>
             <Target className="w-6 h-6 text-orange-600" />
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-none">
-            <div className="bg-orange-600 h-full w-[62%] rounded-none"></div>
+            <div className="bg-orange-600 h-full w-[0%] rounded-none"></div>
           </div>
         </div>
 
@@ -69,7 +108,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Current Stage</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">Roof Slab Casting</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">Not Started</h2>
             </div>
             <Activity className="w-6 h-6 text-blue-600" />
           </div>
@@ -80,7 +119,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Start Date</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">12 August 2026</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">-</h2>
             </div>
             <CalendarCheck className="w-6 h-6 text-emerald-600" />
           </div>
@@ -91,7 +130,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase">Expected Completion</p>
-              <h2 className="text-xl font-bold text-slate-900 mt-2">28 Feb 2027</h2>
+              <h2 className="text-xl font-bold text-slate-900 mt-2">-</h2>
             </div>
             <CalendarDays className="w-6 h-6 text-slate-600" />
           </div>
@@ -139,24 +178,7 @@ const Dashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   <tr>
-                    <td className="px-4 py-3 text-slate-800">18 Sep, 10:00 AM</td>
-                    <td className="px-4 py-3 text-slate-600">Ultratech Cement</td>
-                    <td className="px-4 py-3 font-bold text-slate-800">45 Bags</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-slate-800">18 Sep, 08:30 AM</td>
-                    <td className="px-4 py-3 text-slate-600">Steel (12mm)</td>
-                    <td className="px-4 py-3 font-bold text-slate-800">800 Kg</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-slate-800">17 Sep</td>
-                    <td className="px-4 py-3 text-slate-600">Red Bricks</td>
-                    <td className="px-4 py-3 font-bold text-slate-800">4,500 Pcs</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-slate-800">16 Sep</td>
-                    <td className="px-4 py-3 text-slate-600">River Sand</td>
-                    <td className="px-4 py-3 font-bold text-slate-800">2 Trucks</td>
+                    <td colSpan="3" className="px-4 py-8 text-center text-slate-500 font-medium">No materials logged yet.</td>
                   </tr>
                 </tbody>
               </table>
@@ -173,18 +195,7 @@ const Dashboard = () => {
             <CheckCircle2 className="w-5 h-5 text-green-600" /> Today's Work
           </h2>
           <ul className="space-y-3">
-             <li className="flex items-start gap-2">
-               <div className="mt-1.5 w-1.5 h-1.5 bg-slate-900 rounded-none shrink-0"></div>
-               <span className="text-slate-700 text-sm font-medium">Shuttering for 1st Floor Roof</span>
-             </li>
-             <li className="flex items-start gap-2">
-               <div className="mt-1.5 w-1.5 h-1.5 bg-slate-900 rounded-none shrink-0"></div>
-               <span className="text-slate-700 text-sm font-medium">Steel mesh reinforcement binding</span>
-             </li>
-             <li className="flex items-start gap-2">
-               <div className="mt-1.5 w-1.5 h-1.5 bg-slate-900 rounded-none shrink-0"></div>
-               <span className="text-slate-700 text-sm font-medium">Water curing on yesterday's brickwork</span>
-             </li>
+             <li className="text-slate-500 text-sm font-medium text-center py-4">No tasks logged for today</li>
           </ul>
         </div>
 
@@ -194,18 +205,7 @@ const Dashboard = () => {
             <Clock className="w-5 h-5 text-blue-600" /> Upcoming Tasks
           </h2>
           <ul className="space-y-3">
-             <li className="flex items-start justify-between border-b border-slate-100 pb-2">
-               <span className="text-slate-700 text-sm font-medium">Complete Steel Binding</span>
-               <span className="text-xs font-bold text-slate-400">Tomorrow</span>
-             </li>
-             <li className="flex items-start justify-between border-b border-slate-100 pb-2">
-               <span className="text-slate-700 text-sm font-medium">Electrical Conduit Laying</span>
-               <span className="text-xs font-bold text-slate-400">In 2 Days</span>
-             </li>
-             <li className="flex items-start justify-between border-b border-slate-100 pb-2">
-               <span className="text-slate-700 text-sm font-medium">Concrete Pouring (Slab)</span>
-               <span className="text-xs font-bold text-slate-400">In 4 Days</span>
-             </li>
+             <li className="text-slate-500 text-sm font-medium text-center py-4">No upcoming tasks scheduled</li>
           </ul>
         </div>
 
@@ -214,18 +214,50 @@ const Dashboard = () => {
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
             <Camera className="w-5 h-5 text-slate-900" /> Site Photos
           </h2>
-          <div className="grid grid-cols-2 gap-2 flex-1">
-            <div className="bg-slate-100 overflow-hidden h-[120px] rounded-none">
-              <img src="https://images.unsplash.com/photo-1541888086425-d81bb19240f5?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Site Photo" className="w-full h-full object-cover" />
-            </div>
-            <div className="bg-slate-100 overflow-hidden h-[120px] rounded-none">
-              <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Material" className="w-full h-full object-cover" />
-            </div>
+          <div className="flex-1 flex items-center justify-center bg-slate-50 border border-dashed border-slate-300 min-h-[120px]">
+             <span className="text-slate-500 text-sm font-medium">No photos uploaded</span>
           </div>
         </div>
 
       </div>
 
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-4 flex justify-between items-center text-white">
+              <h2 className="font-bold text-sm uppercase tracking-wider">Project Configuration</h2>
+              <button 
+                onClick={() => setIsSettingsModalOpen(false)} 
+                className="text-slate-400 hover:text-white transition-colors">
+                  ✕
+              </button>
+            </div>
+            <form onSubmit={handleUpdateConfig} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Total Contract Value (₹)</label>
+                <input 
+                  type="number" 
+                  value={newBudget}
+                  onChange={(e) => setNewBudget(e.target.value)}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Approved Additional Limit (₹)</label>
+                <input 
+                  type="number" 
+                  value={newLimit}
+                  onChange={(e) => setNewLimit(e.target.value)}
+                  className="w-full p-2 border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-orange-500"
+                  required
+                />
+              </div>
+              <button type="submit" className="w-full bg-orange-600 text-white font-bold py-3 hover:bg-slate-900 transition-colors uppercase">Save Settings</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
