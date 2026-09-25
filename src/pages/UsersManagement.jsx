@@ -89,16 +89,16 @@ const UsersManagement = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-10">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-none shadow-sm border border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">App Users & Clients</h1>
+            <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-widest">App Users</h1>
             <p className="text-slate-500 text-sm mt-1">Manage personnel access and client accounts.</p>
           </div>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="shrink-0 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center gap-2"
+            className="shrink-0 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-none font-bold uppercase text-xs tracking-widest transition-colors flex items-center gap-2"
           >
-            + Add New User
+            + New User
           </button>
         </div>
 
@@ -113,24 +113,24 @@ const UsersManagement = () => {
       {/* Modal Overlay */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-none shadow-2xl max-w-md w-full relative flex flex-col max-h-[90vh]">
             
             <div className="flex justify-between items-center p-6 border-b border-slate-200">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                Register New User
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                Register User
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-colors">
                 &times;
               </button>
             </div>
             
             <div className="p-6 overflow-y-auto">
-              <form onSubmit={handleCreateUser} className="space-y-5">
+              <form onSubmit={handleCreateUser} className="space-y-6">
                 
                 {/* Profile Image Pick */}
                 <div className="flex flex-col items-center mb-2">
                   <div 
-                    className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded-full flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-100 transition-colors"
+                    className="w-20 h-20 bg-slate-50 border border-dashed border-slate-300 rounded-none flex items-center justify-center overflow-hidden cursor-pointer hover:bg-slate-100 transition-colors"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {isUploading ? (
@@ -141,52 +141,56 @@ const UsersManagement = () => {
                       <ImagePlus className="w-6 h-6 text-slate-400" />
                     )}
                   </div>
-                  <span className="text-xs text-slate-500 mt-2 font-medium">Avatar (Optional)</span>
+                  <span className="text-xs text-slate-500 mt-3 font-semibold uppercase tracking-widest">Avatar (Optional)</span>
                   <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Full Name</label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 text-slate-900" placeholder="e.g. Amit Sharma" />
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium" placeholder="e.g. Amit Sharma" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Mobile Number</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 text-slate-900" placeholder="e.g. 9876543210" />
+                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium" placeholder="e.g. 9876543210" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Login PIN (4-Digits)</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Login PIN (4-Digits)</label>
                   <div className="relative">
                     <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <input type="text" value={pin} onChange={(e) => setPin(e.target.value)} className="w-full pl-10 pr-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 text-slate-900" placeholder="e.g. 1234" />
+                    <input type="text" value={pin} onChange={(e) => setPin(e.target.value)} className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium" placeholder="e.g. 1234" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Role / Access Level</label>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Role / Access Level</label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                    <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full pl-10 pr-10 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500 text-slate-900 appearance-none">
+                    <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-none focus:outline-none focus:border-slate-800 text-slate-900 font-medium appearance-none">
                       <option value="customer">Client</option>
                       <option value="manager">Manager</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="engineer">Engineer</option>
+                      <option value="accountant">Accountant</option>
+                      <option value="contractor">Contractor</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="pt-2 flex gap-3">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-md hover:bg-slate-200 transition-colors">
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-widest rounded-none hover:bg-slate-200 transition-colors">
                     Cancel
                   </button>
-                  <button type="submit" disabled={isSubmitting} className="flex-1 py-2.5 bg-orange-600 text-white font-medium rounded-md hover:bg-orange-700 transition-colors flex justify-center items-center gap-2">
-                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : 'Create User'}
+                  <button type="submit" disabled={isSubmitting} className="flex-1 py-3 bg-orange-600 text-white font-bold uppercase text-xs tracking-widest rounded-none hover:bg-orange-700 transition-colors flex justify-center items-center gap-2">
+                    {isSubmitting ? <Loader className="w-4 h-4 animate-spin" /> : 'Create'}
                   </button>
                 </div>
               </form>
@@ -197,59 +201,63 @@ const UsersManagement = () => {
 
         {/* Users List */}
         <div>
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-               <h2 className="text-sm font-semibold text-slate-800">Active Accounts</h2>
-               <span className="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200">{users.length} Total</span>
+          <div className="bg-white rounded-none shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+             <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+               <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Active Accounts</h2>
+               <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-none border border-slate-200 uppercase tracking-widest">{users.length} Total</span>
              </div>
              
              <div className="flex-1 overflow-auto max-h-[600px]">
                {isLoading ? (
                  <div className="p-16 flex flex-col items-center justify-center text-slate-400">
                     <Loader className="w-8 h-8 animate-spin mb-3 text-slate-400" />
-                    <span className="font-medium text-sm">Loading users...</span>
+                    <span className="font-bold tracking-widest uppercase text-xs">Loading accounts...</span>
                  </div>
                ) : users.length === 0 ? (
-                 <div className="p-16 text-center text-slate-500">No users created yet.</div>
+                 <div className="p-16 text-center text-slate-500 font-bold uppercase tracking-widest text-sm">No accounts found.</div>
                ) : (
                  <table className="w-full text-left border-collapse">
                    <thead>
                      <tr className="bg-white border-b border-slate-200">
-                       <th className="px-6 py-3 text-xs font-semibold text-slate-500">Name & Profile</th>
-                       <th className="px-6 py-3 text-xs font-semibold text-slate-500">Mobile</th>
-                       <th className="px-6 py-3 text-xs font-semibold text-slate-500">Role</th>
-                       <th className="px-6 py-3 text-xs font-semibold text-slate-500 text-right">Actions</th>
+                       <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Name & Profile</th>
+                       <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Mobile</th>
+                       <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Role</th>
+                       <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {users.map(user => (
                        <tr key={user._id} className="hover:bg-slate-50 transition-colors">
                          <td className="px-6 py-4">
-                           <div className="flex items-center gap-3">
+                           <div className="flex items-center gap-4">
                              {user.profileImage ? (
-                               <img src={user.profileImage} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                               <img src={user.profileImage} alt={user.name} className="w-9 h-9 rounded-none object-cover border border-slate-200 shadow-sm" />
                              ) : (
-                               <div className="w-8 h-8 rounded-full bg-slate-200 flex justify-center items-center text-slate-600 font-bold text-xs uppercase">
+                               <div className="w-9 h-9 rounded-none bg-slate-200 flex justify-center items-center text-slate-700 font-black text-sm uppercase shadow-sm">
                                  {user.name.charAt(0)}
                                </div>
                              )}
-                             <div className="font-medium text-slate-900">{user.name}</div>
+                             <div className="font-bold text-slate-900">{user.name}</div>
                            </div>
                          </td>
-                         <td className="px-6 py-4 text-sm text-slate-600">
+                         <td className="px-6 py-4 text-sm font-medium text-slate-700">
                             {user.phone}
                          </td>
                          <td className="px-6 py-4">
-                           <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                             user.role === 'admin' ? 'bg-indigo-50 text-indigo-700' :
-                             user.role === 'manager' ? 'bg-sky-50 text-sky-700' : 
-                             'bg-emerald-50 text-emerald-700'
+                           <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-none border ${
+                             user.role === 'admin' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                             user.role === 'manager' ? 'bg-sky-50 text-sky-700 border-sky-200' : 
+                             user.role === 'supervisor' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                             user.role === 'engineer' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                             user.role === 'contractor' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                             user.role === 'accountant' ? 'bg-pink-50 text-pink-700 border-pink-200' :
+                             'bg-emerald-50 text-emerald-700 border-emerald-200'
                            }`}>
-                             {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                             {user.role}
                            </span>
                          </td>
                          <td className="px-6 py-4 text-right">
-                           <button onClick={() => handleDeleteUser(user._id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                           <button onClick={() => handleDeleteUser(user._id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200">
                              <Trash2 className="w-4 h-4" />
                            </button>
                          </td>
