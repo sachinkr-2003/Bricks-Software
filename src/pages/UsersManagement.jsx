@@ -12,7 +12,7 @@ const UsersManagement = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
-  const [role, setRole] = useState('Client');
+  const [role, setRole] = useState('customer');
   const [profileImage, setProfileImage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -66,7 +66,7 @@ const UsersManagement = () => {
     setIsSubmitting(true);
     try {
       await api.post('/auth/register', { name, phone, pin, role, profileImage });
-      setName(''); setPhone(''); setPin(''); setRole('Client'); setProfileImage('');
+      setName(''); setPhone(''); setPin(''); setRole('customer'); setProfileImage('');
       await fetchUsers(); // Refresh list
     } catch (err) {
       setError(err.response?.data?.message || 'Error creating user');
@@ -155,9 +155,9 @@ const UsersManagement = () => {
                 <div className="relative">
                   <Shield className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 focus:outline-none focus:border-slate-800 font-medium text-slate-700 appearance-none">
-                    <option value="Client">Client</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Admin">Admin</option>
+                    <option value="customer">Client</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
               </div>
