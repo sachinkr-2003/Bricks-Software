@@ -168,9 +168,9 @@ const Profile = ({ onLogout }) => {
       {/* Banner Header */}
       <div className="h-32 bg-slate-900 border border-slate-950 relative overflow-hidden flex items-center px-8 shadow-sm">
          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', backgroundSize: '16px 16px', opacity: '0.2' }}></div>
-         <div className="relative z-10 flex justify-between w-full items-center">
+         <div className="relative z-10 flex flex-col sm:flex-row justify-between w-full items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-serif font-black text-white tracking-tight">Account Settings</h1>
+              <h1 className="text-2xl sm:text-3xl font-serif font-black text-white tracking-tight">Account Settings</h1>
               <p className="text-orange-500 font-bold tracking-widest uppercase text-[10px] mt-1">Brick By Brick • Management Profile</p>
             </div>
             <div className="flex items-center gap-3">
@@ -207,8 +207,8 @@ const Profile = ({ onLogout }) => {
             
             {activeTab === 'account' && (
               <div className="bg-white border border-slate-300 shadow-sm">
-                  {/* Profile Header */}
-                 <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center gap-6">
+                   {/* Profile Header */}
+                 <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                     <div className="relative w-20 h-20 bg-slate-900 flex items-center justify-center p-1 shadow-md shrink-0 group">
                        <div className="w-full h-full border border-slate-700 flex items-center justify-center bg-slate-800 overflow-hidden relative">
                           {profileImage
@@ -235,7 +235,7 @@ const Profile = ({ onLogout }) => {
 
                    {/* SweetAlert replaces saveMsg banner, keeping the space clean */}
 
-                    <div className="grid grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                        <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
                           {isEditing
@@ -258,7 +258,7 @@ const Profile = ({ onLogout }) => {
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
                        <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registered Mobile</label>
                           <div className="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 font-medium flex items-center gap-2">
