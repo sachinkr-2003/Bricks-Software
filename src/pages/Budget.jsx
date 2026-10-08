@@ -51,8 +51,50 @@ const Budget = () => {
   const amountRemaining = finances.totalContractValue - finances.amountPaid;
   const utilizedPercentage = Math.round((finances.amountPaid / finances.totalContractValue) * 100) || 0;
 
-  // Example Milestones
-  const milestones = [];
+  // Dynamic Contract Milestones based on project value
+  const baseValue = finances.totalContractValue || 5000000;
+  const milestones = [
+    {
+      id: 'M-1',
+      stage: 'Foundation & Excavation Phase',
+      percent: '20%',
+      amount: `₹${Math.round(baseValue * 0.20).toLocaleString('en-IN')}`,
+      status: finances.amountPaid >= (baseValue * 0.20) ? 'Paid' : 'Pending',
+      date: 'Phase 1 Completion'
+    },
+    {
+      id: 'M-2',
+      stage: 'Ground & 1st Floor RCC Slab Casting',
+      percent: '30%',
+      amount: `₹${Math.round(baseValue * 0.30).toLocaleString('en-IN')}`,
+      status: finances.amountPaid >= (baseValue * 0.50) ? 'Paid' : 'Pending',
+      date: 'Phase 2 Completion'
+    },
+    {
+      id: 'M-3',
+      stage: 'Brickwork, Plaster & Concealed Conduit',
+      percent: '25%',
+      amount: `₹${Math.round(baseValue * 0.25).toLocaleString('en-IN')}`,
+      status: finances.amountPaid >= (baseValue * 0.75) ? 'Paid' : 'Pending',
+      date: 'Phase 3 Completion'
+    },
+    {
+      id: 'M-4',
+      stage: 'Flooring, Plumbing & Exterior Finishing',
+      percent: '20%',
+      amount: `₹${Math.round(baseValue * 0.20).toLocaleString('en-IN')}`,
+      status: finances.amountPaid >= (baseValue * 0.95) ? 'Paid' : 'Pending',
+      date: 'Phase 4 Completion'
+    },
+    {
+      id: 'M-5',
+      stage: 'Final Inspection & Key Handover',
+      percent: '5%',
+      amount: `₹${Math.round(baseValue * 0.05).toLocaleString('en-IN')}`,
+      status: finances.amountPaid >= baseValue ? 'Paid' : 'Pending',
+      date: 'Project Handover'
+    }
+  ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 relative text-sm">

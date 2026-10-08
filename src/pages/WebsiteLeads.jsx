@@ -33,14 +33,6 @@ const WebsiteLeads = () => {
     }
   };
 
-  const handleActionPlaceholder = (actionName) => {
-    Swal.fire({
-      icon: 'info',
-      title: `${actionName} Lead`,
-      text: `The ${actionName.toLowerCase()} feature is coming in the next update.`,
-      confirmButtonColor: '#ea580c'
-    });
-  };
 
   const handleViewLead = (lead) => {
     Swal.fire({

@@ -128,10 +128,10 @@ const Labour = () => {
       
       const dateMatch = filterDate === 'All' ? true : (filterDate === 'Today' ? rDateStr === todayStr : rDateStr !== todayStr);
       
-      const catMatch = filterCategory === 'All' ? true : record.labourId.category.includes(filterCategory);
+      const catMatch = filterCategory === 'All' ? true : (record.labourId.category ? record.labourId.category.includes(filterCategory) : false);
       
       const searchStr = searchQuery.toLowerCase();
-      const searchMatch = searchQuery === '' ? true : (record.labourId.name.toLowerCase().includes(searchStr));
+      const searchMatch = searchQuery === '' ? true : (record.labourId.name ? record.labourId.name.toLowerCase().includes(searchStr) : false);
 
       return dateMatch && catMatch && searchMatch;
     });

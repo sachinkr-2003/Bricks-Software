@@ -23,6 +23,12 @@ function App() {
     if (token) {
       setIsAuthenticated(true);
     }
+
+    const onAuthError = () => {
+      handleLogout();
+    };
+    window.addEventListener('auth-error', onAuthError);
+    return () => window.removeEventListener('auth-error', onAuthError);
   }, []);
 
   const handleLogout = () => {
