@@ -22,18 +22,25 @@ const DashboardLayout = () => {
 
   // ✅ Real user from localStorage
   const [loggedUser, setLoggedUser] = useState({ name: '', role: '', profileImage: '' });
+  
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('user');
-      if (raw) {
-        const u = JSON.parse(raw);
-        setLoggedUser({
-          name: u.name || 'User',
-          role: (u.role || 'staff').toUpperCase(),
-          profileImage: u.profileImage || '',
-        });
-      }
-    } catch (_) {}
+    const updateFromStorage = () => {
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          setLoggedUser({
+            name: u.name || 'User',
+            role: (u.role || 'staff').toUpperCase(),
+            profileImage: u.profileImage || '',
+          });
+        }
+      } catch (_) {}
+    };
+
+    updateFromStorage();
+    window.addEventListener('storage', updateFromStorage);
+    return () => window.removeEventListener('storage', updateFromStorage);
   }, []);
 
   const [notifications, setNotifications] = useState([]);
