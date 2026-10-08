@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Building, LogOut, Shield, Bell, Key, Briefcase, Camera, RefreshCw } from 'lucide-react';
 import api from '../services/api';
+import Swal from 'sweetalert2';
+
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${api.defaults.baseURL.replace('/api', '')}${path}`;
+};
 
 const Profile = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('account');
@@ -40,6 +47,60 @@ const Profile = ({ onLogout }) => {
     }
   };
 
+  const handleProfileImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      Swal.fire({
+        title: 'Uploading...',
+        text: 'Please wait while we set your profile picture.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      const formData = new FormData();
+      formData.append('images', file);
+
+      // Upload to server
+      const uploadRes = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const imageUrl = uploadRes.data.urls?.[0];
+      if (!imageUrl) throw new Error('Upload failed');
+
+      // Update profile
+      const { data } = await api.put('/auth/profile', { profileImage: imageUrl });
+      setUser(data);
+      
+      // Update local storage
+      const existing = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...existing, ...data }));
+      
+      // Dispatch storage event to update navbar instantly
+      window.dispatchEvent(new Event('storage'));
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Updated!',
+        text: 'Profile picture updated successfully.',
+        confirmButtonColor: '#EA580C',
+      });
+      
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: err.response?.data?.message || 'Error uploading image. Please try again.',
+        confirmButtonColor: '#EA580C',
+      });
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMsg('');
@@ -51,16 +112,49 @@ const Profile = ({ onLogout }) => {
       // Update localStorage
       const existing = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...existing, ...data }));
-      setSaveMsg('Profile updated successfully!');
+      
       setEditPin('');
       setIsEditing(false);
       // Force navbar to re-read by dispatching event
       window.dispatchEvent(new Event('storage'));
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Saved!',
+        text: 'Account settings updated successfully.',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+
     } catch (err) {
-      setSaveMsg('Error saving profile. Please try again.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: err.response?.data?.message || 'Error saving profile. Please try again.',
+        confirmButtonColor: '#EA580C',
+      });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLogoutClick = () => {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will be logged out of your management session.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EA580C',
+      cancelButtonColor: '#64748B',
+      confirmButtonText: 'Yes, sign out'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        onLogout();
+      }
+    });
   };
 
   const name = user?.name || '—';
@@ -87,7 +181,7 @@ const Profile = ({ onLogout }) => {
                 <RefreshCw className="w-4 h-4" /> Refresh
               </button>
               <button 
-                onClick={onLogout}
+                onClick={handleLogoutClick}
                 className="bg-red-600 text-white font-bold py-2 px-6 hover:bg-red-700 transition-colors flex items-center gap-2 shadow-xl border border-red-800"
               >
                 <LogOut className="w-4 h-4" /> Sign Out
@@ -113,14 +207,18 @@ const Profile = ({ onLogout }) => {
             
             {activeTab === 'account' && (
               <div className="bg-white border border-slate-300 shadow-sm">
-                 {/* Profile Header */}
+                  {/* Profile Header */}
                  <div className="p-6 border-b border-slate-200 bg-slate-50 flex items-center gap-6">
-                    <div className="relative w-20 h-20 bg-slate-900 flex items-center justify-center p-1 shadow-md shrink-0">
-                       <div className="w-full h-full border border-slate-700 flex items-center justify-center bg-slate-800 overflow-hidden">
+                    <div className="relative w-20 h-20 bg-slate-900 flex items-center justify-center p-1 shadow-md shrink-0 group">
+                       <div className="w-full h-full border border-slate-700 flex items-center justify-center bg-slate-800 overflow-hidden relative">
                           {profileImage
-                            ? <img src={profileImage} alt="profile" className="w-full h-full object-cover" />
+                            ? <img src={getImageUrl(profileImage)} alt="profile" className="w-full h-full object-cover" />
                             : <User className="w-8 h-8 text-orange-500" />
                           }
+                          <label className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center cursor-pointer transition-colors z-10" title="Upload Profile Picture">
+                             <Camera className="w-6 h-6 text-white" />
+                             <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageChange} />
+                          </label>
                        </div>
                     </div>
                     <div>
@@ -135,11 +233,7 @@ const Profile = ({ onLogout }) => {
 
                  <div className="p-6 space-y-6">
 
-                   {saveMsg && (
-                     <div className={`p-3 text-sm font-bold border ${saveMsg.includes('Error') ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
-                       {saveMsg}
-                     </div>
-                   )}
+                   {/* SweetAlert replaces saveMsg banner, keeping the space clean */}
 
                     <div className="grid grid-cols-2 gap-8">
                        <div className="space-y-1">
@@ -209,11 +303,7 @@ const Profile = ({ onLogout }) => {
                   <p className="text-sm text-slate-500 mt-1">Update your secure login PIN</p>
                 </div>
                 <div className="p-6 space-y-4">
-                  {saveMsg && (
-                    <div className={`p-3 text-sm font-bold border ${saveMsg.includes('Error') ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
-                      {saveMsg}
-                    </div>
-                  )}
+                  {/* SweetAlert replacing inline saveMsg */}
                   <div className="space-y-1 max-w-sm">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">New PIN</label>
                     <input

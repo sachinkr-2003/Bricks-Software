@@ -7,6 +7,12 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${api.defaults.baseURL.replace('/api', '')}${path}`;
+};
+
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -169,7 +175,7 @@ const DashboardLayout = () => {
              </div>
              <div className="w-9 h-9 bg-slate-700 flex items-center justify-center shadow-sm overflow-hidden">
                 {loggedUser.profileImage
-                  ? <img src={loggedUser.profileImage} alt="profile" className="w-full h-full object-cover" />
+                  ? <img src={getImageUrl(loggedUser.profileImage)} alt="profile" className="w-full h-full object-cover" />
                   : <User className="w-5 h-5 text-white" />
                 }
              </div>

@@ -187,13 +187,13 @@ const Updates = () => {
                </div>
 
                {/* Photos Section */}
-               {update.images && update.images.length > 0 && (
+               {update.photos && update.photos.length > 0 && (
                  <div className="pt-4 border-t border-slate-100">
                     <h3 className="text-sm font-bold text-slate-900 uppercase mb-3">Live Photos / Videos</h3>
                     <div className="flex flex-wrap gap-3">
-                      {update.images.map((img, i) => (
+                      {update.photos.map((img, i) => (
                         <div key={i} className="w-24 h-24 bg-slate-200 border border-slate-300 relative group cursor-pointer overflow-hidden">
-                          <img src={`http://localhost:5000${img}`} alt="Update" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                          <img src={img.startsWith('http') ? img : `${api.defaults.baseURL.replace('/api', '')}${img}`} alt="Update" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                         </div>
                       ))}
                     </div>

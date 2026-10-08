@@ -3,6 +3,13 @@ import { Plus, Filter, X } from 'lucide-react';
 
 import api from '../services/api';
 
+const getImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const baseUrl = api.defaults.baseURL.replace('/api', '');
+  return `${baseUrl}${path}`;
+};
+
 const Materials = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -27,6 +34,7 @@ const Materials = () => {
   }, []);
 
   const [formData, setFormData] = useState({
+    date: '',
     materialName: '',
     quantity: '',
     unit: 'Bags',
@@ -35,21 +43,46 @@ const Materials = () => {
     status: 'Pending',
   });
 
+  const [selectedFile, setSelectedFile] = useState(null);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
   const handleAddBill = async (e) => {
     e.preventDefault();
     try {
-      // In web we don't upload images right now via this specific form, keeping it simple
-      await api.post('/materials', formData);
+      const data = new FormData();
+      data.append('date', formData.date || new Date().toISOString());
+      data.append('materialName', formData.materialName);
+      data.append('quantity', formData.quantity);
+      data.append('unit', formData.unit);
+      data.append('supplierName', formData.supplierName);
+      data.append('totalCost', formData.totalCost);
+      data.append('status', formData.status);
+      
+      if (selectedFile) {
+        data.append('billImage', selectedFile);
+      }
+
+      await api.post('/materials', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
       setIsAddModalOpen(false);
-      setFormData({ materialName: '', quantity: '', unit: 'Bags', supplierName: '', totalCost: '', status: 'Pending' });
+      setFormData({ date: '', materialName: '', quantity: '', unit: 'Bags', supplierName: '', totalCost: '', status: 'Pending' });
+      setSelectedFile(null);
       fetchBills(); // refresh list
     } catch (error) {
       alert('Error creating bill');
+      console.error(error);
     }
   };
 
@@ -131,7 +164,7 @@ const Materials = () => {
                     </td>
                     <td className="px-4 py-3 text-center border border-slate-300">
                       {bill.billImage ? (
-                        <a href={`http://localhost:5000${bill.billImage}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer">
+                        <a href={getImageUrl(bill.billImage)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer">
                           View
                         </a>
                       ) : (
@@ -171,33 +204,33 @@ const Materials = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="font-bold">Date</label>
-                  <input type="text" name="date" required placeholder="e.g. 19 Sep 2026" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
+                  <input type="date" name="date" required className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
                     value={formData.date} onChange={handleInputChange} />
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold">Material Name</label>
-                  <input type="text" name="material" required placeholder="e.g. Ultratech Cement" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
-                    value={formData.material} onChange={handleInputChange} />
+                  <input type="text" name="materialName" required placeholder="e.g. Ultratech Cement" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
+                    value={formData.materialName} onChange={handleInputChange} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="font-bold">Quantity</label>
-                  <input type="text" name="quantity" required placeholder="e.g. 100 Bags" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
+                  <input type="number" name="quantity" required placeholder="e.g. 100" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
                     value={formData.quantity} onChange={handleInputChange} />
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold">Amount (₹)</label>
-                  <input type="number" name="amount" required placeholder="e.g. 35000" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
-                    value={formData.amount} onChange={handleInputChange} />
+                  <input type="number" name="totalCost" required placeholder="e.g. 35000" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
+                    value={formData.totalCost} onChange={handleInputChange} />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label className="font-bold">Supplier Name</label>
-                <input type="text" name="supplier" required placeholder="e.g. Gupta Traders" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
-                  value={formData.supplier} onChange={handleInputChange} />
+                <input type="text" name="supplierName" required placeholder="e.g. Gupta Traders" className="w-full border border-slate-300 px-3 py-2 rounded-none focus:outline-none focus:border-slate-900" 
+                  value={formData.supplierName} onChange={handleInputChange} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -212,8 +245,8 @@ const Materials = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold">Upload Bill / Invoice</label>
-                  <input type="file" name="photo" className="w-full border border-slate-300 px-3 py-1.5 rounded-none focus:outline-none focus:border-slate-900 text-slate-600 bg-slate-50" 
-                    onChange={handleInputChange} />
+                  <input type="file" name="billImage" className="w-full border border-slate-300 px-3 py-1.5 rounded-none focus:outline-none focus:border-slate-900 text-slate-600 bg-slate-50" 
+                    onChange={handleFileChange} />
                 </div>
               </div>
 
@@ -243,3 +276,4 @@ const Materials = () => {
 };
 
 export default Materials;
+
